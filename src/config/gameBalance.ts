@@ -60,4 +60,22 @@ export const GAME_BALANCE = {
   human: {
     sightRadius: 100,
   },
+  player: {
+    maxHp: 10,
+    invincibilityMs: 600,
+    flashIntervalMs: 100,
+  },
+  skills: {
+    qingZai:  { range: 120, damage: 3, uses: 3 },
+    shuangZi: { range: 200, damage: 4, uses: 2 },
+    hongHui:  { range: 120, damage: 2, burnDamage: 1, burnIntervalMs: 600, burnDurationMs: 3000, uses: 1 },
+    baiHui:   { range: 200, slowFactor: 0.3, durationMs: 4000, uses: 1 },
+    baoYe:    { shieldHits: 3, radius: 60, uses: 1 },
+  },
+  collision: {
+    greenRatDamage: 1,
+    blueRatDamage: 2,
+    bossDamage: 10,
+    bossContactRadius: 64,
+  },
 } as const;

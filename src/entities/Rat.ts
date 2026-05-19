@@ -18,6 +18,8 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
   private bossSurfaceY = GAME_BALANCE.world.surfaceY;
   private escapePipeX?: number;
   private surfaceY = GAME_BALANCE.world.surfaceY;
+  // External speed multiplier applied by slow zones (1.0 = normal, < 1.0 = slowed)
+  public externalSpeedMultiplier = 1.0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, 'rat');
@@ -50,6 +52,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.bossTargetPipeX = undefined;
     this.bossSurfaceY = GAME_BALANCE.world.surfaceY;
     this.surfaceY = GAME_BALANCE.world.surfaceY;
+    this.externalSpeedMultiplier = 1.0;
 
     if (this.body) {
       (this.body as Phaser.Physics.Arcade.Body).setAllowGravity(true);
@@ -97,6 +100,34 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.scene.time.delayedCall(350, () => {
       this.canTakeDamage = true;
     });
+  }
+
+  // Apply periodic burn damage over time
+  applyBurn(damage: number, intervalMs: number, durationMs: number): void {
+    if (!this.active) return;
+    const ticks = Math.floor(durationMs / intervalMs);
+    for (let i = 1; i <= ticks; i++) {
+      this.scene.time.delayedCall(i * intervalMs, () => {
+        if (!this.active) return;
+        this.setTintFill(0xff6600);
+        this.scene.time.delayedCall(150, () => {
+          if (!this.active) return;
+          this.clearTint();
+          this.setTint(GAME_BALANCE.rat.profiles[this.faction].tint);
+        });
+        this.takeDamage(damage);
+      });
+    }
+  }
+
+  // Called each frame by SkillSystem when rat is inside a slow zone
+  applySlowField(factor: number): void {
+    this.externalSpeedMultiplier = factor;
+  }
+
+  // Called each frame by SkillSystem when rat is outside all slow zones
+  resetSlowField(): void {
+    this.externalSpeedMultiplier = 1.0;
   }
 
   panic(): void {
@@ -198,7 +229,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
       }
     }
 
-    this.setVelocityX(this.moveSpeed * this.currentDirection);
+    this.setVelocityX(this.moveSpeed * this.externalSpeedMultiplier * this.currentDirection);
 
     if (this.y > this.scene.scale.height + 50) {
       this.despawn();

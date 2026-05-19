@@ -11,6 +11,7 @@ import { HumanSightSystem } from '../systems/HumanSightSystem';
 import { LevelTimerSystem } from '../systems/LevelTimerSystem';
 import { RatSpawnerSystem } from '../systems/RatSpawnerSystem';
 import { ReputationSystem } from '../systems/ReputationSystem';
+import { SkillSystem } from '../systems/SkillSystem';
 import { TrapSystem } from '../systems/TrapSystem';
 
 export class MainGameScene extends Phaser.Scene {
@@ -28,6 +29,7 @@ export class MainGameScene extends Phaser.Scene {
   private levelTimerSystem!: LevelTimerSystem;
   private bossController!: BossEventController;
   private reputationSystem!: ReputationSystem;
+  private skillSystem!: SkillSystem;
 
   constructor() {
     super(SCENE_KEYS.mainGame);
@@ -51,6 +53,10 @@ export class MainGameScene extends Phaser.Scene {
 
     this.player = new Player(this, 100, 100);
 
+    // 初始化 registry 血量資料
+    this.registry.set('playerHp', this.player.hp);
+    this.registry.set('playerMaxHp', this.player.maxHp);
+
     this.physics.add.collider(this.greenRatPool, this.platforms);
     this.physics.add.collider(this.blueRatPool, this.platforms);
     this.physics.add.collider(this.player, this.platforms);
@@ -59,6 +65,34 @@ export class MainGameScene extends Phaser.Scene {
     this.physics.add.overlap(this.greenRatPool, pipe, this.handleRatClimbPipe, undefined, this);
     this.physics.add.overlap(this.blueRatPool, pipe, this.handleRatClimbPipe, undefined, this);
     this.physics.add.overlap(this.player, pipe, this.handlePlayerClimbPipe, undefined, this);
+
+    // 玩家與老鼠碰撞 → 玩家受傷
+    this.physics.add.overlap(
+      this.player,
+      this.greenRatPool,
+      (_playerObj, ratObj) => {
+        const rat = ratObj as Rat;
+        if (rat.active) {
+          this.player.receiveRatDamage(GAME_BALANCE.collision.greenRatDamage);
+          this.registry.set('playerHp', this.player.hp);
+        }
+      },
+      undefined,
+      this,
+    );
+    this.physics.add.overlap(
+      this.player,
+      this.blueRatPool,
+      (_playerObj, ratObj) => {
+        const rat = ratObj as Rat;
+        if (rat.active) {
+          this.player.receiveRatDamage(GAME_BALANCE.collision.blueRatDamage);
+          this.registry.set('playerHp', this.player.hp);
+        }
+      },
+      undefined,
+      this,
+    );
 
     this.spawnInitialHumans();
 
@@ -74,6 +108,15 @@ export class MainGameScene extends Phaser.Scene {
     });
 
     this.trapSystem = new TrapSystem(this.trapPool, this.player);
+
+    this.skillSystem = new SkillSystem(
+      this,
+      this.player,
+      () => this.getActiveRats(),
+      () => this.reputationSystem.recordRatKill(GAME_BALANCE.reputation.ratKillReward),
+    );
+    // 初始化技能使用次數到 registry
+    this.registry.set('skillUses', { ...this.skillSystem.getRemainingUses() });
 
     this.humanSightSystem = new HumanSightSystem({
       humanPool: this.humanPool,
@@ -148,6 +191,34 @@ export class MainGameScene extends Phaser.Scene {
 
     if (this.player.isJustPlacingTrap()) {
       this.trapSystem.placeTrap();
+    }
+
+    // 技能輸入
+    const skillActions: Array<[1 | 2 | 3 | 4 | 5, () => boolean]> = [
+      [1, () => this.skillSystem.useQingZai()],
+      [2, () => this.skillSystem.useShuangZi()],
+      [3, () => this.skillSystem.useHongHui()],
+      [4, () => this.skillSystem.useBaiHui()],
+      [5, () => this.skillSystem.useBaoYe()],
+    ];
+    for (const [key, action] of skillActions) {
+      if (this.player.isJustUsingSkill(key)) {
+        action();
+        this.registry.set('skillUses', { ...this.skillSystem.getRemainingUses() });
+      }
+    }
+
+    // 更新技能系統（慢速區域）
+    this.skillSystem.update();
+
+    // BOSS 碰撞傷害（接近檢測）
+    const bossPos = this.bossController.getBossPosition();
+    if (bossPos) {
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, bossPos.x, bossPos.y);
+      if (dist <= GAME_BALANCE.collision.bossContactRadius) {
+        this.player.receiveRatDamage(GAME_BALANCE.collision.bossDamage);
+        this.registry.set('playerHp', this.player.hp);
+      }
     }
 
     this.humanSightSystem.update();
