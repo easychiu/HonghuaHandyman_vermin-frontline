@@ -45,6 +45,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    this.setScale(2);
     this.setCollideWorldBounds(true);
 
     this.healthBarGraphics = scene.add.graphics().setDepth(50);
