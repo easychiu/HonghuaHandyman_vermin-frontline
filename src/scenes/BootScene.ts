@@ -13,6 +13,7 @@ export class BootScene extends Phaser.Scene {
   create(): void {
     this.registry.set('reputationScore', 0);
     this.registry.set('ratKills', 0);
+    this.registry.set('scaredHumans', 0);
     this.registry.set('levelTimeLeft', 0);
     this.registry.set('bossActive', false);
     this.scene.start(SCENE_KEYS.ready);

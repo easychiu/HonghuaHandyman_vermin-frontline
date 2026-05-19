@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS } from '../config/sceneKeys';
+import { defaultHudState, HudState } from '../ui/hud';
 
 export class UIScene extends Phaser.Scene {
   private topLeftText?: Phaser.GameObjects.Text;
@@ -25,13 +26,15 @@ export class UIScene extends Phaser.Scene {
   }
 
   update(): void {
-    const score = Number(this.registry.get('reputationScore') ?? 0);
-    const kills = Number(this.registry.get('ratKills') ?? 0);
-    const scaredHumans = Number(this.registry.get('scaredHumans') ?? 0);
-    const timeLeft = Number(this.registry.get('levelTimeLeft') ?? 0);
-    const bossActive = Boolean(this.registry.get('bossActive'));
+    const hud: HudState = {
+      score: Number(this.registry.get('reputationScore') ?? defaultHudState.score),
+      kills: Number(this.registry.get('ratKills') ?? defaultHudState.kills),
+      scaredHumans: Number(this.registry.get('scaredHumans') ?? defaultHudState.scaredHumans),
+      timeLeft: Number(this.registry.get('levelTimeLeft') ?? defaultHudState.timeLeft),
+      bossActive: Boolean(this.registry.get('bossActive') ?? defaultHudState.bossActive),
+    };
 
-    this.topLeftText?.setText(`評分: ${score}\n擊殺: ${kills}\n嚇跑人數: ${scaredHumans}\n倒數: ${timeLeft}s`);
-    this.bossText?.setText(bossActive ? '⚠ 大BOSS 驅趕鼠群中 ⚠' : '');
+    this.topLeftText?.setText(`評分: ${hud.score}\n擊殺: ${hud.kills}\n嚇跑人數: ${hud.scaredHumans}\n倒數: ${hud.timeLeft}s`);
+    this.bossText?.setText(hud.bossActive ? '⚠ 大BOSS 驅趕鼠群中 ⚠' : '');
   }
 }
