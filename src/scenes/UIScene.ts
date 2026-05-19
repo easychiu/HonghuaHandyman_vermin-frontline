@@ -77,7 +77,7 @@ export class UIScene extends Phaser.Scene {
       lineSpacing: 4,
     }).setDepth(1000);
 
-    const maxTouchPoints = navigator?.maxTouchPoints ?? 0;
+    const maxTouchPoints = navigator.maxTouchPoints ?? 0;
     const isTouchCapable = this.sys.game.device.input.touch || maxTouchPoints > 0;
     const isLikelyMobileViewport = this.scale.width <= UIScene.MOBILE_VIEWPORT_THRESHOLD;
     const isLikelyMobileOs = this.sys.game.device.os.android || this.sys.game.device.os.iOS;
