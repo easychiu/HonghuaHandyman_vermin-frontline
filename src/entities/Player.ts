@@ -3,7 +3,7 @@ import {
   getHonghuaIdleAnimationKey,
   getHonghuaThrowAnimationKey,
   getHonghuaWalkAnimationKey,
-  HONGHUA_IDLE_FRAMES,
+  HONGHUA_INITIAL_FRAME,
   HONGHUA_TEXTURE_KEY,
 } from '../animations/honghuaAnimations';
 import { GAME_BALANCE } from '../config/gameBalance';
@@ -38,7 +38,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private lastFacing: 'left' | 'right' = 'right';
   
   constructor(scene: Phaser.Scene, x: number, y: number, inputController: GameInputController) {
-    super(scene, x, y, HONGHUA_TEXTURE_KEY, HONGHUA_IDLE_FRAMES.right);
+    super(scene, x, y, HONGHUA_TEXTURE_KEY, HONGHUA_INITIAL_FRAME);
     this.inputController = inputController;
     
     this.maxHp = GAME_BALANCE.player.maxHp;

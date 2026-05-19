@@ -26,12 +26,7 @@ export const HONGHUA_ANIMATION_KEYS = {
 } as const;
 
 export type HonghuaThrowType = 'qingZai' | 'shuangZi' | 'hongHui' | 'baiHui' | 'baoYe';
-export type HonghuaFacing = 'left' | 'right';
-
-export const HONGHUA_IDLE_FRAMES: Record<HonghuaFacing, number> = {
-  right: FRAME_RANGES.walkRight.start,
-  left: FRAME_RANGES.walkRight.start,
-};
+export const HONGHUA_INITIAL_FRAME = FRAME_RANGES.idle.start;
 
 const THROW_ANIMATION_KEYS: Record<HonghuaThrowType, string> = {
   qingZai: HONGHUA_ANIMATION_KEYS.throw1,
@@ -46,7 +41,7 @@ const CLIMB_PLACEHOLDER_RANGE = FRAME_RANGES.throw1;
 export function ensureHonghuaAnimations(scene: Phaser.Scene): void {
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.walkRight, FRAME_RANGES.walkRight.start, FRAME_RANGES.walkRight.end, 12, -1);
   // 目前素材只有 5 組動作，攀爬時暫用第 3 組「投擲」動作維持流程相容
-  createAnimation(scene, HONGHUA_ANIMATION_KEYS.climb, CLIMB_PLACEHOLDER_RANGE.start, CLIMB_PLACEHOLDER_RANGE.end, 12);
+  createAnimation(scene, HONGHUA_ANIMATION_KEYS.climb, CLIMB_PLACEHOLDER_RANGE.start, CLIMB_PLACEHOLDER_RANGE.end, 12, -1);
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.attack, FRAME_RANGES.attack.start, FRAME_RANGES.attack.end, 14);
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.throw1, FRAME_RANGES.throw1.start, FRAME_RANGES.throw1.end, 12);
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.hurt, FRAME_RANGES.hurt.start, FRAME_RANGES.hurt.end, 12);
