@@ -1,369 +1,286 @@
 import Phaser from 'phaser';
+import { GAME_BALANCE } from '../config/gameBalance';
+import { SCENE_KEYS } from '../config/sceneKeys';
+import { BossEventController } from '../controllers/BossEventController';
+import { Human } from '../entities/Human';
+import { Player } from '../entities/Player';
 import { Rat } from '../entities/Rat';
-import { Player } from '../entities/Player'; // 1. 引入主角
-import { Trap } from '../entities/Trap'; // 引入陷阱類別
-import { Human } from '../entities/Human'; // 1. 引入人類類別
+import { Trap } from '../entities/Trap';
+import { CombatSystem } from '../systems/CombatSystem';
+import { HumanSightSystem } from '../systems/HumanSightSystem';
+import { LevelTimerSystem } from '../systems/LevelTimerSystem';
+import { RatSpawnerSystem } from '../systems/RatSpawnerSystem';
+import { ReputationSystem } from '../systems/ReputationSystem';
+import { TrapSystem } from '../systems/TrapSystem';
 
 export class MainGameScene extends Phaser.Scene {
-  // --- 修改：把 ratPool 拆成兩個 ---
   private greenRatPool!: Phaser.Physics.Arcade.Group;
   private blueRatPool!: Phaser.Physics.Arcade.Group;
   private platforms!: Phaser.Physics.Arcade.StaticGroup;
-  private player!: Player; // 宣告主角變數
-  private trapPool!: Phaser.Physics.Arcade.Group; // 宣告陷阱池
-  private humanPool!: Phaser.Physics.Arcade.Group; // 2. 宣告人類池
+  private player!: Player;
+  private trapPool!: Phaser.Physics.Arcade.Group;
+  private humanPool!: Phaser.Physics.Arcade.Group;
+
+  private combatSystem!: CombatSystem;
+  private trapSystem!: TrapSystem;
+  private humanSightSystem!: HumanSightSystem;
+  private ratSpawnerSystem!: RatSpawnerSystem;
+  private levelTimerSystem!: LevelTimerSystem;
+  private bossController!: BossEventController;
+  private reputationSystem!: ReputationSystem;
 
   constructor() {
-    super('MainGameScene');
+    super(SCENE_KEYS.mainGame);
   }
 
   create(): void {
     const { width, height } = this.scale;
 
-    // ==========================================
-    // 1. 視覺分層 (背景)
-    // ==========================================
-    // 地面層天空背景 (淺藍灰色)
     this.cameras.main.setBackgroundColor('#8d99ae');
+    this.createBackground(width, height);
+    this.createCommonTextures(height);
+    this.platforms = this.createPlatforms(width, height);
 
-    // 地下層背景 (深暗綠色，呈現下水道的髒污感)
-    const undergroundBg = this.add.graphics();
-    undergroundBg.fillStyle(0x1a2421);
-    // 假設地面層高度在 Y = 250，地下層從 250 一路到底
-    undergroundBg.fillRect(0, 250, width, height - 250);
+    const pipe = this.physics.add.staticImage(480, GAME_BALANCE.world.surfaceY, 'pipe_texture').setOrigin(0.5, 0);
+    pipe.refreshBody();
 
-    this.add.text(width / 2, 30, '地面層 (人類街道)', {
-        color: '#ffffff', fontSize: '20px', align: 'center'
-    }).setOrigin(0.5);
+    this.greenRatPool = this.physics.add.group({ classType: Rat, maxSize: 100, runChildUpdate: true });
+    this.blueRatPool = this.physics.add.group({ classType: Rat, maxSize: 100, runChildUpdate: true });
+    this.trapPool = this.physics.add.group({ classType: Trap, maxSize: 20, runChildUpdate: false });
+    this.humanPool = this.physics.add.group({ classType: Human, maxSize: 10, runChildUpdate: true });
 
-    this.add.text(width / 2, 280, '地下層 (藍綠鼠巢穴)', {
-        color: '#888888', fontSize: '20px', align: 'center'
-    }).setOrigin(0.5);
+    this.player = new Player(this, 100, 100);
 
-    // ==========================================
-    // 2. 建立雙層物理地形 (Platforms)
-    // ==========================================
-    this.platforms = this.physics.add.staticGroup();
-
-    // 畫一個灰白色的長方形當作「地面街道」材質
-    const groundGraphics = this.add.graphics();
-    groundGraphics.fillStyle(0xdddddd);
-    groundGraphics.fillRect(0, 0, 100, 20); // 基準大小
-    groundGraphics.generateTexture('ground_texture', 100, 20);
-    groundGraphics.destroy();
-
-    // 畫一個深褐色的長方形當作「下水道底層」材質
-    const undergroundGraphics = this.add.graphics();
-    undergroundGraphics.fillStyle(0x3e2723);
-    undergroundGraphics.fillRect(0, 0, 100, 40);
-    undergroundGraphics.generateTexture('underground_texture', 100, 40);
-    undergroundGraphics.destroy();
-
-    // --- 佈置地面層 (Y = 250) ---
-    // 故意在中間留一個「水溝蓋」的缺口 (X: 400 ~ 560 之間是空的)
-    const groundLeft = this.platforms.create(200, 250, 'ground_texture');
-    groundLeft.setDisplaySize(400, 20); // 左半邊地板
-    groundLeft.refreshBody();
-
-    const groundRight = this.platforms.create(760, 250, 'ground_texture');
-    groundRight.setDisplaySize(400, 20); // 右半邊地板
-    groundRight.refreshBody();
-
-    // --- 佈置地下層底部 (Y = height - 20) ---
-    const undergroundFloor = this.platforms.create(width / 2, height - 20, 'underground_texture');
-    undergroundFloor.setDisplaySize(width, 40); // 鋪滿整個底部
-    undergroundFloor.refreshBody();
-
-    // ==========================================
-    // 2.5 建立攀爬水管 (Pipe)
-    // ==========================================
-    const pipeGraphics = this.add.graphics();
-    pipeGraphics.fillStyle(0x555555); // 深灰色水管
-    pipeGraphics.fillRect(0, 0, 40, height - 250); // 高度從地下層底端一路連到地面
-    pipeGraphics.generateTexture('pipe_texture', 40, height - 250);
-    pipeGraphics.destroy();
-
-    // 放置在水溝蓋缺口的正下方 (缺口大約在 X = 400 ~ 560 之間，所以放在 X = 480)
-    // setOrigin(0.5, 0) 代表以圖片上緣為定位點
-    const pipe = this.physics.add.staticImage(480, 250, 'pipe_texture').setOrigin(0.5, 0);
-    pipe.refreshBody(); // 更新物理碰撞框
-
-    // ==========================================
-    // 3. 建立老鼠物件池 (分離陣營)
-    // ==========================================
-    const ratGraphics = this.add.graphics();
-    ratGraphics.fillStyle(0xffffff); 
-    ratGraphics.fillRect(0, 0, 24, 24);
-    ratGraphics.generateTexture('rat', 24, 24);
-    ratGraphics.destroy();
-
-    // 建立綠鼠池
-    this.greenRatPool = this.physics.add.group({
-      classType: Rat,
-      maxSize: 100,
-      runChildUpdate: true
-    });
-
-    // 建立藍鼠池
-    this.blueRatPool = this.physics.add.group({
-      classType: Rat,
-      maxSize: 100,
-      runChildUpdate: true
-    });
-
-    // 讓兩種老鼠都會與地形碰撞
     this.physics.add.collider(this.greenRatPool, this.platforms);
     this.physics.add.collider(this.blueRatPool, this.platforms);
-    // --- 新增：設定老鼠碰到水管的觸發事件 ---
+    this.physics.add.collider(this.player, this.platforms);
+    this.physics.add.collider(this.humanPool, this.platforms);
+
     this.physics.add.overlap(this.greenRatPool, pipe, this.handleRatClimbPipe, undefined, this);
     this.physics.add.overlap(this.blueRatPool, pipe, this.handleRatClimbPipe, undefined, this);
 
-    // --- 效能救星：只偵測綠鼠與藍鼠之間的重疊 ---
-    this.physics.add.overlap(
-      this.greenRatPool, 
-      this.blueRatPool, 
-      this.handleRatBrawl, 
-      undefined, 
-      this
-    );
+    this.spawnInitialHumans();
 
+    this.reputationSystem = new ReputationSystem(this, GAME_BALANCE.reputation.startingScore);
 
-    // ==========================================
-    // 新增：5. 建立主角 (紅花)
-    // ==========================================
-    const playerGraphics = this.add.graphics();
-    playerGraphics.fillStyle(0xe63946); // 紅色方塊代表紅花
-    playerGraphics.fillRect(0, 0, 32, 48); // 高度稍微拉長，像個人型
-    playerGraphics.generateTexture('player_texture', 32, 48);
-    playerGraphics.destroy();
-
-    // 將紅花生成在地面層左側 (X: 100, Y: 100)
-    this.player = new Player(this, 100, 100);
-
-    // 設定主角與地形的物理碰撞
-    this.physics.add.collider(this.player, this.platforms);
-    // ==========================================
-    // 6. 建立陷阱系統 (Trap Pool)
-    // ==========================================
-    // 畫一個紫色的壓扁方塊當作老鼠夾/陷阱
-    const trapGraphics = this.add.graphics();
-    trapGraphics.fillStyle(0x9d4edd); 
-    trapGraphics.fillRect(0, 0, 24, 8);
-    trapGraphics.generateTexture('trap_texture', 24, 8);
-    trapGraphics.destroy();
-
-    this.trapPool = this.physics.add.group({
-      classType: Trap,
-      maxSize: 20, // 限制場上最多同時存在 20 個陷阱
-      runChildUpdate: false
+    this.combatSystem = new CombatSystem({
+      scene: this,
+      player: this.player,
+      greenRatPool: this.greenRatPool,
+      blueRatPool: this.blueRatPool,
+      trapPool: this.trapPool,
+      onRatKilled: () => this.reputationSystem.recordRatKill(GAME_BALANCE.reputation.ratKillReward),
     });
 
-    // 設定老鼠與陷阱的重疊觸發 (Overlap，不用 Collider 因為陷阱不應該阻擋老鼠的物理移動)
-    this.physics.add.overlap(this.greenRatPool, this.trapPool, this.handleRatHitTrap, undefined, this);
-    this.physics.add.overlap(this.blueRatPool, this.trapPool, this.handleRatHitTrap, undefined, this);
-    // ==========================================
-    // 7. 建立人類系統
-    // ==========================================
-    // 畫一個藍色的長方形當作人類
-    const humanGraphics = this.add.graphics();
-    humanGraphics.fillStyle(0xffffff); // 設為全白方便後續 setTint 染色
-    humanGraphics.fillRect(0, 0, 24, 40);
-    humanGraphics.generateTexture('human_texture', 24, 40);
-    humanGraphics.destroy();
+    this.trapSystem = new TrapSystem(this.trapPool, this.player);
 
-    this.humanPool = this.physics.add.group({
-      classType: Human,
-      maxSize: 10,
-      runChildUpdate: true
+    this.humanSightSystem = new HumanSightSystem({
+      humanPool: this.humanPool,
+      getActiveRats: () => this.getActiveRats(),
+      panicRadius: GAME_BALANCE.human.sightRadius,
+      onHumanSawRat: () => this.reputationSystem.penalizeHumanSight(GAME_BALANCE.reputation.humanSightPenalty),
     });
 
-    // 人類也會與地形發生碰撞
-    this.physics.add.collider(this.humanPool, this.platforms);
+    const portalX = width - 40;
+    const portalY = height - 80;
+    this.createPortal(portalX, portalY);
 
-    // 測試：在遊戲開始時，在左右兩邊的地面層各生成一個人類
-    const human1 = this.humanPool.get() as Human;
+    this.ratSpawnerSystem = new RatSpawnerSystem({
+      scene: this,
+      greenRatPool: this.greenRatPool,
+      blueRatPool: this.blueRatPool,
+      portalX,
+      portalY,
+      surfaceY: GAME_BALANCE.world.surfaceY,
+    });
+    this.ratSpawnerSystem.startAutoSpawn();
+
+    this.levelTimerSystem = new LevelTimerSystem({
+      scene: this,
+      durationSeconds: GAME_BALANCE.level.durationSeconds,
+      onComplete: () => {
+        this.bossController.trigger(() => this.getActiveRats());
+      },
+    });
+    this.levelTimerSystem.start();
+
+    this.bossController = new BossEventController({
+      scene: this,
+      pipeX: pipe.x,
+      surfaceY: GAME_BALANCE.world.surfaceY,
+      onStateChange: (active) => this.registry.set('bossActive', active),
+    });
+
+    if (!this.scene.isActive(SCENE_KEYS.ui)) {
+      this.scene.launch(SCENE_KEYS.ui);
+    }
+
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.ratSpawnerSystem.spawnByPointer(pointer);
+    });
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.ratSpawnerSystem.stop();
+      this.levelTimerSystem.stop();
+      this.bossController.stop();
+      this.scene.stop(SCENE_KEYS.ui);
+    });
+  }
+
+  update(_time: number, delta: number): void {
+    this.player.update(delta);
+
+    if (this.player.isJustAttacking()) {
+      this.combatSystem.handlePlayerAttack();
+    }
+
+    if (this.player.isJustPlacingTrap()) {
+      this.trapSystem.placeTrap();
+    }
+
+    this.humanSightSystem.update();
+  }
+
+  private handleRatClimbPipe(
+    ratObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+    _pipeObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+  ): void {
+    const rat = ratObj as Rat;
+    if (!rat.active || rat.isClimbing) {
+      return;
+    }
+
+    if (rat.isPanicking || this.bossController.isActive()) {
+      rat.climb();
+    }
+  }
+
+  private getActiveRats(): Rat[] {
+    const activeGreen = this.greenRatPool.getChildren().filter((r) => r.active) as Rat[];
+    const activeBlue = this.blueRatPool.getChildren().filter((r) => r.active) as Rat[];
+    return [...activeGreen, ...activeBlue];
+  }
+
+  private createBackground(width: number, height: number): void {
+    const undergroundBg = this.add.graphics();
+    undergroundBg.fillStyle(0x1a2421);
+    undergroundBg.fillRect(0, GAME_BALANCE.world.surfaceY, width, height - GAME_BALANCE.world.surfaceY);
+
+    this.add
+      .text(width / 2, 30, '地面層 (人類街道)', { color: '#ffffff', fontSize: '20px', align: 'center' })
+      .setOrigin(0.5);
+
+    this.add
+      .text(width / 2, GAME_BALANCE.world.surfaceY + 30, '地下層 (藍綠鼠巢穴)', {
+        color: '#888888',
+        fontSize: '20px',
+        align: 'center',
+      })
+      .setOrigin(0.5);
+  }
+
+  private createPlatforms(width: number, height: number): Phaser.Physics.Arcade.StaticGroup {
+    const platforms = this.physics.add.staticGroup();
+
+    const groundLeft = platforms.create(200, GAME_BALANCE.world.surfaceY, 'ground_texture');
+    groundLeft.setDisplaySize(400, 20);
+    groundLeft.refreshBody();
+
+    const groundRight = platforms.create(760, GAME_BALANCE.world.surfaceY, 'ground_texture');
+    groundRight.setDisplaySize(400, 20);
+    groundRight.refreshBody();
+
+    const undergroundFloor = platforms.create(width / 2, height - 20, 'underground_texture');
+    undergroundFloor.setDisplaySize(width, 40);
+    undergroundFloor.refreshBody();
+
+    return platforms;
+  }
+
+  private createCommonTextures(height: number): void {
+    if (!this.textures.exists('ground_texture')) {
+      const g = this.add.graphics();
+      g.fillStyle(0xdddddd);
+      g.fillRect(0, 0, 100, 20);
+      g.generateTexture('ground_texture', 100, 20);
+      g.destroy();
+    }
+
+    if (!this.textures.exists('underground_texture')) {
+      const g = this.add.graphics();
+      g.fillStyle(0x3e2723);
+      g.fillRect(0, 0, 100, 40);
+      g.generateTexture('underground_texture', 100, 40);
+      g.destroy();
+    }
+
+    if (!this.textures.exists('pipe_texture')) {
+      const g = this.add.graphics();
+      g.fillStyle(0x555555);
+      g.fillRect(0, 0, 40, height - GAME_BALANCE.world.surfaceY);
+      g.generateTexture('pipe_texture', 40, height - GAME_BALANCE.world.surfaceY);
+      g.destroy();
+    }
+
+    if (!this.textures.exists('rat')) {
+      const g = this.add.graphics();
+      g.fillStyle(0xffffff);
+      g.fillRect(0, 0, 24, 24);
+      g.generateTexture('rat', 24, 24);
+      g.destroy();
+    }
+
+    if (!this.textures.exists('player_texture')) {
+      const g = this.add.graphics();
+      g.fillStyle(0xe63946);
+      g.fillRect(0, 0, 32, 48);
+      g.generateTexture('player_texture', 32, 48);
+      g.destroy();
+    }
+
+    if (!this.textures.exists('trap_texture')) {
+      const g = this.add.graphics();
+      g.fillStyle(0x9d4edd);
+      g.fillRect(0, 0, 24, 8);
+      g.generateTexture('trap_texture', 24, 8);
+      g.destroy();
+    }
+
+    if (!this.textures.exists('human_texture')) {
+      const g = this.add.graphics();
+      g.fillStyle(0xffffff);
+      g.fillRect(0, 0, 24, 40);
+      g.generateTexture('human_texture', 24, 40);
+      g.destroy();
+    }
+
+    if (!this.textures.exists('portal_texture')) {
+      const g = this.add.graphics();
+      g.fillStyle(0x9d4edd, 0.8);
+      g.fillCircle(20, 20, 20);
+      g.generateTexture('portal_texture', 40, 40);
+      g.destroy();
+    }
+  }
+
+  private spawnInitialHumans(): void {
+    const human1 = this.humanPool.get() as Human | null;
     human1?.spawn(200, 200);
 
-    const human2 = this.humanPool.get() as Human;
+    const human2 = this.humanPool.get() as Human | null;
     human2?.spawn(760, 200);
-    // ==========================================
-    // 8. 建立綠鼠次元通道 (Auto Spawner)
-    // ==========================================
+  }
 
-    // 畫一個紫色的圓形當作次元通道
-    const portalGraphics = this.add.graphics();
-    portalGraphics.fillStyle(0x9d4edd, 0.8); // 紫色半透明
-    portalGraphics.fillCircle(20, 20, 20);
-    portalGraphics.generateTexture('portal_texture', 40, 40);
-    portalGraphics.destroy();
-
-    // 放置在地下層的右下角
-    const portalX = width - 40;
-    const portalY = height - 80; // 配合地下層地板的高度
+  private createPortal(portalX: number, portalY: number): void {
     const portal = this.add.image(portalX, portalY, 'portal_texture');
-
-    // 讓次元通道有一點呼吸閃爍的動畫效果 (Tween)
     this.tweens.add({
       targets: portal,
       alpha: 0.4,
       scaleX: 1.2,
       scaleY: 1.2,
       duration: 1000,
-      yoyo: true, // 自動來回播放
-      repeat: -1  // 無限重複
+      yoyo: true,
+      repeat: -1,
     });
-
-    // 建立自動生成的計時器
-    this.time.addEvent({
-      delay: 2000, // 設定每 2000 毫秒 (2秒) 生成一隻
-      callback: () => {
-        // 從綠鼠池中抓一隻出來
-        const rat = this.greenRatPool.get() as Rat;
-        if (rat) {
-          // 因為通道在右邊，所以給予一個向左的隨機速度
-          const randomVelocityX = Phaser.Math.Between(-150, -80);
-          
-          // 在通道的位置生成綠鼠
-          rat.spawn(portalX, portalY, randomVelocityX, 'green');
-        }
-      },
-      callbackScope: this,
-      loop: true // 無限循環
-    });
-    // 修改滑鼠點擊生成邏輯
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      const factionToSpawn = pointer.y > 250 ? 'blue' : 'green';
-      // 根據陣營從正確的池子抓老鼠
-      const pool = factionToSpawn === 'green' ? this.greenRatPool : this.blueRatPool;
-      
-      const rat = pool.get() as Rat;
-      if (rat) {
-        const randomVelocityX = Phaser.Math.Between(-150, 150);
-        rat.spawn(pointer.x, pointer.y, randomVelocityX, factionToSpawn);
-      }
-    });
-  }
-  // ==========================================
-  // 新增：主迴圈 (每秒執行 60 次)
-  // ==========================================
-  update(time: number, delta: number): void {
-    if (this.player) {
-      // 把 delta 傳給主角，用來計算 Coyote Time
-      this.player.update(delta);
-      // --- 偵測玩家攻擊 ---
-      if (this.player.isJustAttacking()) {
-        this.handlePlayerAttack();
-      }
-      // --- 偵測玩家放置陷阱 ---
-      if (this.player.isJustPlacingTrap()) {
-        this.placeTrap();
-      }
-    }
-    // ==========================================
-    // 偵測：人類是否看到老鼠
-    // ==========================================
-    const panicRadius = 100; // 人類的視力範圍（距離像素）
-
-    // 取得所有活著的人類與老鼠
-    const activeHumans = this.humanPool.getChildren().filter(h => h.active) as Human[];
-    // --- 修改：把綠鼠和藍鼠的陣列合在一起檢查 ---
-    const activeGreen = this.greenRatPool.getChildren().filter(r => r.active) as Rat[];
-    const activeBlue = this.blueRatPool.getChildren().filter(r => r.active) as Rat[];
-    const activeRats = [...activeGreen, ...activeBlue];
-
-    activeHumans.forEach(human => {
-      // 如果這個人已經在逃跑了，就不用再檢查他有沒有看到老鼠
-      if (human.isPanicking) return;
-
-      activeRats.forEach(rat => {
-        // 使用 Phaser 內建的數學函式計算兩點距離
-        const distance = Phaser.Math.Distance.Between(human.x, human.y, rat.x, rat.y);
-        
-        if (distance < panicRadius) {
-          human.panic();
-        }
-      });
-    });
-
-  }
-  // --- 新增：放置陷阱邏輯 ---
-  private placeTrap(): void {
-    const trap = this.trapPool.get() as Trap;
-    if (trap) {
-      // 將陷阱放置在紅花腳下的位置
-      // 因為紅花高度是 48，腳底大約是 y + 24
-      trap.spawn(this.player.x, this.player.y + 20);
-    }
-  }
-  // --- 新增：老鼠踩到陷阱的邏輯 ---
-  private handleRatHitTrap(ratObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, trapObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile): void {
-    const rat = ratObj as Rat;
-    const trap = trapObj as Trap;
-
-    // 確保兩者都是啟用狀態才觸發
-    if (rat.active && trap.active) {
-      // 陷阱造成 2 點傷害 (剛好秒殺綠鼠，如果綠鼠血量是 2)
-      rat.takeDamage(2);
-      
-      // 陷阱消耗掉，回收進物件池
-      trap.despawn();
-    }
-  }
-  // --- 處理攻擊邏輯與視覺特效 ---
-  private handlePlayerAttack(): void {
-    const attackRange = 40;  // 攻擊距離
-    const attackHeight = 48; // 攻擊高度 (跟主角一樣高)
-    
-    // 根據紅花面向，計算攻擊框的座標
-    const attackX = this.player.facingDirection === 1 
-      ? this.player.x + 16 // 面向右：從角色右邊緣開始
-      : this.player.x - 16 - attackRange; // 面向左：從角色左側往外推
-      
-    const attackY = this.player.y - 24; // 對齊角色上半部
-
-    // 1. 視覺回饋：畫一道黃色的「劍氣/攻擊框」
-    const slash = this.add.graphics();
-    slash.fillStyle(0xffd166, 0.8);
-    slash.fillRect(attackX, attackY, attackRange, attackHeight);
-    
-    // 0.1秒後讓特效自動消失
-    this.time.delayedCall(100, () => slash.destroy());
-
-    // 2. 物理判定：抓出攻擊框範圍內的所有物理實體
-    const hits = this.physics.overlapRect(attackX, attackY, attackRange, attackHeight);
-    
-    hits.forEach(body => {
-      // Phaser 的物理 body 會帶有對應的 gameObject 參考
-      const entity = body.gameObject as any;
-      
-      // 如果打到的物件是老鼠（擁有 takeDamage 方法）
-      if (entity && typeof entity.takeDamage === 'function') {
-        entity.takeDamage(1); // 扣 1 滴血
-      }
-    });
-  }
-  // --- 新增：藍綠鼠互咬的邏輯 ---
-  private handleRatBrawl(rat1Obj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, rat2Obj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile): void {
-    const rat1 = rat1Obj as Rat;
-    const rat2 = rat2Obj as Rat;
-
-    // 如果物件已經被回收，直接跳出避免報錯
-    if (!rat1 || !rat2 || !rat1.active || !rat2.active) return;
-
-    if (rat1.faction !== rat2.faction) {
-      if (rat1.isPanicking || rat2.isPanicking) return;
-
-      rat1.takeDamage(1);
-      rat2.takeDamage(1);
-    }
-  }
-  // --- 新增：老鼠觸發攀爬的邏輯 ---
-  private handleRatClimbPipe(ratObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, pipeObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile): void {
-    const rat = ratObj as Rat;
-    
-    // 只有當老鼠「活著」、「處於恐慌狀態」、且「還沒開始爬」的時候，才會觸發攀爬
-    if (rat.active && rat.isPanicking && !rat.isClimbing) {
-      rat.climb();
-    }
   }
 }
