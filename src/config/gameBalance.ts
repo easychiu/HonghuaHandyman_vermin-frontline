@@ -16,10 +16,11 @@ export const GAME_BALANCE = {
     surfacePlatformThickness: 20,
   },
   level: {
-    durationSeconds: 90,
-    bossDriveDurationMs: 9000,
+    durationSeconds: 75,
+    bossTriggerTimeLeftSeconds: 30,
+    bossDriveDurationMs: 15000,
     bossSpriteStartX: 120,
-    bossSpriteY: 150,
+    bossSpriteY: 360,
     bossSpriteDepth: 30,
   },
   reputation: {

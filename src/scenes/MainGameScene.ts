@@ -103,11 +103,21 @@ export class MainGameScene extends Phaser.Scene {
       onStateChange: (active) => this.registry.set('bossActive', active),
     });
 
+    const triggerBossRush = () => {
+      this.bossController.trigger(() => this.getActiveRats());
+    };
+
     this.levelTimerSystem = new LevelTimerSystem({
       scene: this,
       durationSeconds: GAME_BALANCE.level.durationSeconds,
+      onTick: (timeLeft) => {
+        if (timeLeft <= GAME_BALANCE.level.bossTriggerTimeLeftSeconds) {
+          triggerBossRush();
+        }
+      },
       onComplete: () => {
-        this.bossController.trigger(() => this.getActiveRats());
+        this.ratSpawnerSystem.stop();
+        this.bossController.stop();
       },
     });
     this.levelTimerSystem.start();
