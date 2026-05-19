@@ -19,6 +19,35 @@ export class UIScene extends Phaser.Scene {
   private joystickRadius = 60;
   private joystickCenter = { x: 120, y: 0 };
   private lastTouchClimbHeld = false;
+  private attackButton?: Phaser.GameObjects.Arc;
+  private leftZone?: Phaser.GameObjects.Zone;
+  private touchControlObjects: Phaser.GameObjects.GameObject[] = [];
+
+  private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
+    if (!this.touchControlsVisible || this.joystickPointerId !== pointer.id) {
+      return;
+    }
+    this.updateJoystick(pointer);
+  };
+
+  private readonly onPointerUp = (pointer: Phaser.Input.Pointer) => {
+    if (this.joystickPointerId === pointer.id) {
+      this.releaseJoystick();
+    }
+    if (this.attackPointerId === pointer.id) {
+      this.attackPointerId = null;
+      this.attackButton?.setFillStyle(0xf77f00, 0.8);
+      this.game.events.emit('controls:attack-held', false);
+    }
+  };
+
+  private readonly onLeftZonePointerDown = (pointer: Phaser.Input.Pointer) => {
+    if (!this.touchControlsVisible || this.joystickPointerId !== null) {
+      return;
+    }
+    this.joystickPointerId = pointer.id;
+    this.updateJoystick(pointer);
+  };
 
   constructor() {
     super(SCENE_KEYS.ui);
@@ -66,6 +95,10 @@ export class UIScene extends Phaser.Scene {
         this.game.events.emit('controls:touch-ui-enabled', this.touchControlsVisible);
       });
     this.refreshTouchToggleText();
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.cleanupTouchControls();
+    });
   }
 
   update(): void {
@@ -110,28 +143,24 @@ export class UIScene extends Phaser.Scene {
       .setDepth(1050);
     this.joystickKnob = this.add.circle(this.joystickCenter.x, this.joystickCenter.y, 24, 0xffffff, 0.65)
       .setDepth(1060);
+    this.touchControlObjects.push(this.joystickBase, this.joystickKnob);
 
-    const leftZone = this
+    this.leftZone = this
       .add
       .zone(0, h - 240, this.scale.width * UIScene.JOYSTICK_ZONE_WIDTH_RATIO, 240)
       .setOrigin(0, 0)
       .setDepth(1040);
-    leftZone.setInteractive();
-    leftZone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (!this.touchControlsVisible || this.joystickPointerId !== null) {
-        return;
-      }
-      this.joystickPointerId = pointer.id;
-      this.updateJoystick(pointer);
-    });
+    this.leftZone.setInteractive();
+    this.leftZone.on('pointerdown', this.onLeftZonePointerDown);
+    this.touchControlObjects.push(this.leftZone);
 
-    const attackBtn = this.createTouchButton(this.scale.width - 90, h - 130, 44, '攻擊', 0xf77f00);
-    attackBtn.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    this.attackButton = this.createTouchButton(this.scale.width - 90, h - 130, 44, '攻擊', 0xf77f00);
+    this.attackButton.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (!this.touchControlsVisible || this.attackPointerId !== null) {
         return;
       }
       this.attackPointerId = pointer.id;
-      attackBtn.setFillStyle(0xffa94d, 0.95);
+      this.attackButton?.setFillStyle(0xffa94d, 0.95);
       this.game.events.emit('controls:attack-held', true);
     });
 
@@ -164,23 +193,8 @@ export class UIScene extends Phaser.Scene {
       });
     });
 
-    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (!this.touchControlsVisible || this.joystickPointerId !== pointer.id) {
-        return;
-      }
-      this.updateJoystick(pointer);
-    });
-
-    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-      if (this.joystickPointerId === pointer.id) {
-        this.releaseJoystick();
-      }
-      if (this.attackPointerId === pointer.id) {
-        this.attackPointerId = null;
-        attackBtn.setFillStyle(0xf77f00, 0.8);
-        this.game.events.emit('controls:attack-held', false);
-      }
-    });
+    this.input.on('pointermove', this.onPointerMove);
+    this.input.on('pointerup', this.onPointerUp);
   }
 
   private createTouchButton(
@@ -191,12 +205,13 @@ export class UIScene extends Phaser.Scene {
     color: number,
   ): Phaser.GameObjects.Arc {
     const button = this.add.circle(x, y, radius, color, 0.8).setDepth(1055).setInteractive();
-    this.add.text(x, y, label, {
+    const text = this.add.text(x, y, label, {
       color: '#ffffff',
       fontFamily: 'Arial, sans-serif',
       fontSize: radius >= 34 ? '18px' : '14px',
       fontStyle: 'bold',
     }).setDepth(1065).setOrigin(0.5);
+    this.touchControlObjects.push(button, text);
     return button;
   }
 
@@ -237,17 +252,25 @@ export class UIScene extends Phaser.Scene {
   }
 
   private applyTouchControlVisibility(visible: boolean): void {
-    const minDepth = 1040;
-    this.children.list.forEach((child) => {
-      if (child.depth >= minDepth && child.depth < 1100) {
-        child.setVisible(visible);
-      }
-    });
+    this.touchControlObjects.forEach((child) => child.setVisible(visible));
     if (!visible) {
       this.releaseJoystick();
       this.attackPointerId = null;
       this.game.events.emit('controls:attack-held', false);
     }
+  }
+
+  private cleanupTouchControls(): void {
+    this.input.off('pointermove', this.onPointerMove);
+    this.input.off('pointerup', this.onPointerUp);
+    this.leftZone?.off('pointerdown', this.onLeftZonePointerDown);
+    this.releaseJoystick();
+    this.attackPointerId = null;
+    this.game.events.emit('controls:attack-held', false);
+    this.touchControlObjects.forEach((obj) => obj.destroy());
+    this.touchControlObjects = [];
+    this.leftZone = undefined;
+    this.attackButton = undefined;
   }
 
   private refreshTouchToggleText(debugPointerSpawnEnabled = false): void {

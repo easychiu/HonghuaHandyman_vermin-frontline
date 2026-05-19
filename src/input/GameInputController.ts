@@ -144,11 +144,13 @@ export class GameInputController {
 
     if (!this.attackJustPressed && this.touchAttackHeld) {
       const now = this.scene.time.now;
-      if (this.nextTouchAutoAttackAt === 0 || now >= this.nextTouchAutoAttackAt) {
+      const canAutoAttackNow = this.nextTouchAutoAttackAt === 0 || now >= this.nextTouchAutoAttackAt;
+      if (canAutoAttackNow) {
         this.attackJustPressed = true;
-        this.scheduleNextTouchAutoAttack(now);
       }
-    } else if (this.attackJustPressed && this.touchAttackHeld) {
+    }
+
+    if (this.attackJustPressed && this.touchAttackHeld) {
       this.scheduleNextTouchAutoAttack(this.scene.time.now);
     }
 
