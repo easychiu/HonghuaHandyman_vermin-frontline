@@ -37,7 +37,7 @@ export class GameInputController {
   private touchSkillQueued = new Set<SkillKey>();
   private touchAttackHeld = false;
   private touchAttackQueued = false;
-  private nextTouchAutoAttackAt = 0;
+  private nextTouchAutoAttackAt: number | null = null;
 
   private readonly onTouchMove = (axisX: number) => {
     this.touchMoveAxisX = Phaser.Math.Clamp(axisX, -1, 1);
@@ -56,7 +56,7 @@ export class GameInputController {
       this.touchAttackQueued = true;
     }
     if (!isHeld) {
-      this.nextTouchAutoAttackAt = 0;
+      this.nextTouchAutoAttackAt = null;
     }
     this.touchAttackHeld = isHeld;
   };
@@ -78,7 +78,7 @@ export class GameInputController {
       this.touchSkillQueued.clear();
       this.touchAttackHeld = false;
       this.touchAttackQueued = false;
-      this.nextTouchAutoAttackAt = 0;
+      this.nextTouchAutoAttackAt = null;
     }
   };
 
@@ -144,7 +144,7 @@ export class GameInputController {
 
     if (!this.attackJustPressed && this.touchAttackHeld) {
       const now = this.scene.time.now;
-      const canAutoAttackNow = this.nextTouchAutoAttackAt === 0 || now >= this.nextTouchAutoAttackAt;
+      const canAutoAttackNow = this.nextTouchAutoAttackAt === null || now >= this.nextTouchAutoAttackAt;
       if (canAutoAttackNow) {
         this.attackJustPressed = true;
       }

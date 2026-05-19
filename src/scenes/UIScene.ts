@@ -5,6 +5,7 @@ import { defaultHudState, HudState } from '../ui/hud';
 export class UIScene extends Phaser.Scene {
   private static readonly CLIMB_THRESHOLD_RATIO = 0.45;
   private static readonly JOYSTICK_ZONE_WIDTH_RATIO = 0.48;
+  private static readonly BUTTON_FEEDBACK_DURATION_MS = 120;
 
   private topLeftText?: Phaser.GameObjects.Text;
   private bossText?: Phaser.GameObjects.Text;
@@ -74,7 +75,9 @@ export class UIScene extends Phaser.Scene {
       lineSpacing: 4,
     }).setDepth(1000);
 
-    this.touchControlsVisible = this.sys.game.device.input.touch && !this.sys.game.device.os.desktop;
+    const isDesktop = this.sys.game.device.os.desktop;
+    const isTouchCapable = this.sys.game.device.input.touch;
+    this.touchControlsVisible = !isDesktop && isTouchCapable;
     this.createTouchControls();
     this.applyTouchControlVisibility(this.touchControlsVisible);
     this.game.events.emit('controls:touch-ui-enabled', this.touchControlsVisible);
@@ -171,7 +174,7 @@ export class UIScene extends Phaser.Scene {
       }
       trapBtn.setFillStyle(0xbe95ff, 0.9);
       this.game.events.emit('controls:trap', true);
-      this.time.delayedCall(120, () => trapBtn.setFillStyle(0x9d4edd, 0.8));
+      this.time.delayedCall(UIScene.BUTTON_FEEDBACK_DURATION_MS, () => trapBtn.setFillStyle(0x9d4edd, 0.8));
     });
 
     const skillButtons: Array<{ key: 1 | 2 | 3 | 4 | 5; x: number; y: number; color: number }> = [
@@ -189,7 +192,7 @@ export class UIScene extends Phaser.Scene {
         }
         btn.setScale(1.15);
         this.game.events.emit('controls:skill', key);
-        this.time.delayedCall(120, () => btn.setScale(1));
+        this.time.delayedCall(UIScene.BUTTON_FEEDBACK_DURATION_MS, () => btn.setScale(1));
       });
     });
 
@@ -232,7 +235,7 @@ export class UIScene extends Phaser.Scene {
     this.joystickKnob?.setPosition(knobX, knobY);
 
     const normalizedX = Phaser.Math.Clamp(dx / maxDist, -1, 1);
-    const climbHeld = dy < -maxDist * UIScene.CLIMB_THRESHOLD_RATIO;
+    const climbHeld = this.isJoystickMovingUpward(dy, maxDist);
     const jumpTriggered = climbHeld && !this.lastTouchClimbHeld;
 
     this.game.events.emit('controls:move', normalizedX);
@@ -271,6 +274,11 @@ export class UIScene extends Phaser.Scene {
     this.touchControlObjects = [];
     this.leftZone = undefined;
     this.attackButton = undefined;
+  }
+
+  private isJoystickMovingUpward(deltaY: number, maxDistance: number): boolean {
+    // Phaser 座標系中 y 軸向下為正，因此「往上推」會是負值。
+    return deltaY < -maxDistance * UIScene.CLIMB_THRESHOLD_RATIO;
   }
 
   private refreshTouchToggleText(debugPointerSpawnEnabled = false): void {
