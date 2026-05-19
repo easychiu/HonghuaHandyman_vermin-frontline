@@ -32,6 +32,7 @@ export const GAME_BALANCE = {
   rat: {
     spawnIntervalMs: 1800,
     bossDriveSpeed: 320,
+    bossDrivePulseMs: 450,
     climbTriggerDistance: 28,
     profiles: {
       green: {

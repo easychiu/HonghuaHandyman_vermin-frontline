@@ -116,7 +116,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
       this.currentDirection = -1;
     }
 
-    if (this.y > surfaceY && Math.abs(this.x - pipeX) <= GAME_BALANCE.rat.climbTriggerDistance && !this.isClimbing) {
+    if (this.shouldTriggerBossClimb(pipeX, surfaceY)) {
       this.climb();
       return;
     }
@@ -196,5 +196,9 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     if (this.y > this.scene.scale.height + 50) {
       this.despawn();
     }
+  }
+
+  private shouldTriggerBossClimb(pipeX: number, surfaceY: number): boolean {
+    return this.y > surfaceY && Math.abs(this.x - pipeX) <= GAME_BALANCE.rat.climbTriggerDistance && !this.isClimbing;
   }
 }

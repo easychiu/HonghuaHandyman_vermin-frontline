@@ -39,7 +39,7 @@ export class BossEventController {
     });
 
     this.driveTimer = this.config.scene.time.addEvent({
-      delay: 450,
+      delay: GAME_BALANCE.rat.bossDrivePulseMs,
       loop: true,
       callback: () => {
         getActiveRats().forEach((rat) => rat.applyBossDrive(this.config.pipeX, this.config.surfaceY));

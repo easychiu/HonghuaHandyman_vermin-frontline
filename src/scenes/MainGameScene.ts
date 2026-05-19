@@ -95,6 +95,13 @@ export class MainGameScene extends Phaser.Scene {
     });
     this.ratSpawnerSystem.startAutoSpawn();
 
+    this.bossController = new BossEventController({
+      scene: this,
+      pipeX: pipe.x,
+      surfaceY: GAME_BALANCE.world.surfaceY,
+      onStateChange: (active) => this.registry.set('bossActive', active),
+    });
+
     this.levelTimerSystem = new LevelTimerSystem({
       scene: this,
       durationSeconds: GAME_BALANCE.level.durationSeconds,
@@ -103,13 +110,6 @@ export class MainGameScene extends Phaser.Scene {
       },
     });
     this.levelTimerSystem.start();
-
-    this.bossController = new BossEventController({
-      scene: this,
-      pipeX: pipe.x,
-      surfaceY: GAME_BALANCE.world.surfaceY,
-      onStateChange: (active) => this.registry.set('bossActive', active),
-    });
 
     if (!this.scene.isActive(SCENE_KEYS.ui)) {
       this.scene.launch(SCENE_KEYS.ui);
