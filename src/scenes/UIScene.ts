@@ -6,6 +6,7 @@ export class UIScene extends Phaser.Scene {
   private static readonly CLIMB_THRESHOLD_RATIO = 0.45;
   private static readonly JOYSTICK_ZONE_WIDTH_RATIO = 0.48;
   private static readonly BUTTON_FEEDBACK_DURATION_MS = 120;
+  private static readonly MOBILE_VIEWPORT_THRESHOLD = 1024;
 
   private topLeftText?: Phaser.GameObjects.Text;
   private bossText?: Phaser.GameObjects.Text;
@@ -76,9 +77,12 @@ export class UIScene extends Phaser.Scene {
       lineSpacing: 4,
     }).setDepth(1000);
 
-    const isDesktop = this.sys.game.device.os.desktop;
-    const isTouchCapable = this.sys.game.device.input.touch;
-    this.touchControlsVisible = !isDesktop && isTouchCapable;
+    const maxTouchPoints = typeof navigator !== 'undefined' ? navigator.maxTouchPoints ?? 0 : 0;
+    const isTouchCapable = this.sys.game.device.input.touch || maxTouchPoints > 0;
+    const isLikelyMobileViewport = this.scale.width <= UIScene.MOBILE_VIEWPORT_THRESHOLD;
+    const isLikelyMobileOs = this.sys.game.device.os.android || this.sys.game.device.os.iOS;
+    const shouldShowTouchUi = !this.sys.game.device.os.desktop || isLikelyMobileOs || isLikelyMobileViewport;
+    this.touchControlsVisible = isTouchCapable && shouldShowTouchUi;
     this.createTouchControls();
     this.applyTouchControlVisibility(this.touchControlsVisible);
     this.game.events.emit('controls:touch-ui-enabled', this.touchControlsVisible);

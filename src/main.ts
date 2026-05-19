@@ -5,7 +5,10 @@ import { MainGameScene } from './scenes/MainGameScene';
 import { ReadyScene } from './scenes/ReadyScene';
 import { UIScene } from './scenes/UIScene';
 
-const mountElement = document.getElementById('app') ?? document.body.appendChild(document.createElement('div'));
+const mountElement =
+  document.getElementById('game-container') ??
+  document.getElementById('app') ??
+  document.body.appendChild(document.createElement('div'));
 
 if (!mountElement.id) {
   mountElement.id = 'app';
@@ -16,6 +19,10 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: mountElement.id,
   width: GAME_BALANCE.world.width,
   height: GAME_BALANCE.world.height,
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
   backgroundColor: '#000000',
   input: {
     activePointers: 5,
