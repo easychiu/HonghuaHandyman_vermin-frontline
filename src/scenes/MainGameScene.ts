@@ -74,6 +74,19 @@ export class MainGameScene extends Phaser.Scene {
     undergroundFloor.setDisplaySize(width, 40); // 鋪滿整個底部
     undergroundFloor.refreshBody();
 
+    // ==========================================
+    // 2.5 建立攀爬水管 (Pipe)
+    // ==========================================
+    const pipeGraphics = this.add.graphics();
+    pipeGraphics.fillStyle(0x555555); // 深灰色水管
+    pipeGraphics.fillRect(0, 0, 40, height - 250); // 高度從地下層底端一路連到地面
+    pipeGraphics.generateTexture('pipe_texture', 40, height - 250);
+    pipeGraphics.destroy();
+
+    // 放置在水溝蓋缺口的正下方 (缺口大約在 X = 400 ~ 560 之間，所以放在 X = 480)
+    // setOrigin(0.5, 0) 代表以圖片上緣為定位點
+    const pipe = this.physics.add.staticImage(480, 250, 'pipe_texture').setOrigin(0.5, 0);
+    pipe.refreshBody(); // 更新物理碰撞框
 
     // ==========================================
     // 3. 建立老鼠物件池 (分離陣營)
@@ -101,6 +114,9 @@ export class MainGameScene extends Phaser.Scene {
     // 讓兩種老鼠都會與地形碰撞
     this.physics.add.collider(this.greenRatPool, this.platforms);
     this.physics.add.collider(this.blueRatPool, this.platforms);
+    // --- 新增：設定老鼠碰到水管的觸發事件 ---
+    this.physics.add.overlap(this.greenRatPool, pipe, this.handleRatClimbPipe, undefined, this);
+    this.physics.add.overlap(this.blueRatPool, pipe, this.handleRatClimbPipe, undefined, this);
 
     // --- 效能救星：只偵測綠鼠與藍鼠之間的重疊 ---
     this.physics.add.overlap(
@@ -111,21 +127,6 @@ export class MainGameScene extends Phaser.Scene {
       this
     );
 
-    // 修改滑鼠點擊生成邏輯
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      const factionToSpawn = pointer.y > 250 ? 'blue' : 'green';
-      // 根據陣營從正確的池子抓老鼠
-      const pool = factionToSpawn === 'green' ? this.greenRatPool : this.blueRatPool;
-      
-      const rat = pool.get() as Rat;
-      if (rat) {
-        const randomVelocityX = Phaser.Math.Between(-150, 150);
-        rat.spawn(pointer.x, pointer.y, randomVelocityX, factionToSpawn);
-      }
-    });
-    // 讓老鼠會與所有地形（地面層與地下層）發生碰撞
-    this.physics.add.collider(this.greenRatPool, this.platforms);
-    this.physics.add.collider(this.blueRatPool, this.platforms);
 
     // ==========================================
     // 新增：5. 建立主角 (紅花)
@@ -185,6 +186,62 @@ export class MainGameScene extends Phaser.Scene {
 
     const human2 = this.humanPool.get() as Human;
     human2?.spawn(760, 200);
+    // ==========================================
+    // 8. 建立綠鼠次元通道 (Auto Spawner)
+    // ==========================================
+
+    // 畫一個紫色的圓形當作次元通道
+    const portalGraphics = this.add.graphics();
+    portalGraphics.fillStyle(0x9d4edd, 0.8); // 紫色半透明
+    portalGraphics.fillCircle(20, 20, 20);
+    portalGraphics.generateTexture('portal_texture', 40, 40);
+    portalGraphics.destroy();
+
+    // 放置在地下層的右下角
+    const portalX = width - 40;
+    const portalY = height - 80; // 配合地下層地板的高度
+    const portal = this.add.image(portalX, portalY, 'portal_texture');
+
+    // 讓次元通道有一點呼吸閃爍的動畫效果 (Tween)
+    this.tweens.add({
+      targets: portal,
+      alpha: 0.4,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      duration: 1000,
+      yoyo: true, // 自動來回播放
+      repeat: -1  // 無限重複
+    });
+
+    // 建立自動生成的計時器
+    this.time.addEvent({
+      delay: 2000, // 設定每 2000 毫秒 (2秒) 生成一隻
+      callback: () => {
+        // 從綠鼠池中抓一隻出來
+        const rat = this.greenRatPool.get() as Rat;
+        if (rat) {
+          // 因為通道在右邊，所以給予一個向左的隨機速度
+          const randomVelocityX = Phaser.Math.Between(-150, -80);
+          
+          // 在通道的位置生成綠鼠
+          rat.spawn(portalX, portalY, randomVelocityX, 'green');
+        }
+      },
+      callbackScope: this,
+      loop: true // 無限循環
+    });
+    // 修改滑鼠點擊生成邏輯
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      const factionToSpawn = pointer.y > 250 ? 'blue' : 'green';
+      // 根據陣營從正確的池子抓老鼠
+      const pool = factionToSpawn === 'green' ? this.greenRatPool : this.blueRatPool;
+      
+      const rat = pool.get() as Rat;
+      if (rat) {
+        const randomVelocityX = Phaser.Math.Between(-150, 150);
+        rat.spawn(pointer.x, pointer.y, randomVelocityX, factionToSpawn);
+      }
+    });
   }
   // ==========================================
   // 新增：主迴圈 (每秒執行 60 次)
@@ -213,20 +270,6 @@ export class MainGameScene extends Phaser.Scene {
     const activeGreen = this.greenRatPool.getChildren().filter(r => r.active) as Rat[];
     const activeBlue = this.blueRatPool.getChildren().filter(r => r.active) as Rat[];
     const activeRats = [...activeGreen, ...activeBlue];
-
-    // --- 修改：測試操作，點擊畫面生成老鼠 ---
-    // 修改滑鼠點擊生成邏輯
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      const factionToSpawn = pointer.y > 250 ? 'blue' : 'green';
-      // 根據陣營從正確的池子抓老鼠
-      const pool = factionToSpawn === 'green' ? this.greenRatPool : this.blueRatPool;
-      
-      const rat = pool.get() as Rat;
-      if (rat) {
-        const randomVelocityX = Phaser.Math.Between(-150, 150);
-        rat.spawn(pointer.x, pointer.y, randomVelocityX, factionToSpawn);
-      }
-    });
 
     activeHumans.forEach(human => {
       // 如果這個人已經在逃跑了，就不用再檢查他有沒有看到老鼠
@@ -312,6 +355,15 @@ export class MainGameScene extends Phaser.Scene {
 
       rat1.takeDamage(1);
       rat2.takeDamage(1);
+    }
+  }
+  // --- 新增：老鼠觸發攀爬的邏輯 ---
+  private handleRatClimbPipe(ratObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, pipeObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile): void {
+    const rat = ratObj as Rat;
+    
+    // 只有當老鼠「活著」、「處於恐慌狀態」、且「還沒開始爬」的時候，才會觸發攀爬
+    if (rat.active && rat.isPanicking && !rat.isClimbing) {
+      rat.climb();
     }
   }
 }

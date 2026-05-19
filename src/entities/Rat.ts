@@ -4,7 +4,9 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
   private moveSpeed = 100;
   public currentDirection = 1; 
   public isPanicking = false;
-  
+  // --- 新增：攀爬狀態 ---
+  public isClimbing = false;
+
   // --- 新增：陣營與血量 ---
   public faction: 'green' | 'blue' = 'green';
   public hp = 2; 
@@ -45,6 +47,12 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.faction = faction;
     this.isPanicking = false;
     this.canTakeDamage = true; // --- 新增：每次生成時都要解鎖 ---
+
+    // --- 新增：每次生成時確保重力是開啟的，且不在攀爬狀態 ---
+    this.isClimbing = false;
+    if (this.body) {
+      (this.body as Phaser.Physics.Arcade.Body).allowGravity = true;
+    }
   }
 
   // --- 修改：受傷與殘血邏輯 ---
@@ -82,6 +90,18 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.scene.time.delayedCall(400, () => {
       this.canTakeDamage = true;
     });
+    
+  }
+  // --- 更新：觸發攀爬 ---
+  public climb(): void {
+    if (!this.body || this.isClimbing) return;
+    
+    console.log('觸發水管攀爬！'); // 在瀏覽器 Console 加個 Log 方便你監測觸發狀態
+
+    this.isClimbing = true;
+    
+    // 使用 Phaser 官方推薦的方法確實關閉物理重力
+    (this.body as Phaser.Physics.Arcade.Body).setAllowGravity(false); 
   }
 
   // 把恐慌邏輯獨立出來，讓程式碼更乾淨
@@ -108,7 +128,30 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     } else if (this.body.blocked.left) {
       this.currentDirection = 1; 
     }
+    // ==========================================
+    // 攀爬狀態邏輯 (強制覆寫物理狀態)
+    // ==========================================
+    if (this.isClimbing) {
+      // 每一幀都強制給予向上動力，防止被地板碰撞或引擎重力抵銷
+      this.setVelocityX(0);
+      this.setVelocityY(-200);
 
+      // 判斷是否浮出地面層 (Y < 230)
+      if (this.y < 230) {
+        this.isClimbing = false;
+        
+        // 恢復重力
+        (this.body as Phaser.Physics.Arcade.Body).setAllowGravity(true); 
+        
+        // 彈出水溝蓋的視覺效果與隨機逃竄
+        this.setVelocityY(-150);
+        this.currentDirection = Phaser.Math.Between(0, 1) === 0 ? 1 : -1;
+        this.setVelocityX(this.moveSpeed * this.currentDirection);
+        
+        console.log('攀爬結束，進入地面層！');
+      }
+      return; // 直接 return，跳過下方的撞牆與邊緣偵測
+    }
     // ==========================================
     // 效能優化：降低邊緣偵測頻率 (Throttle)
     // ==========================================
