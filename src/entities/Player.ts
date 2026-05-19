@@ -1,4 +1,10 @@
 import Phaser from 'phaser';
+import {
+  getHonghuaThrowAnimationKey,
+  getHonghuaWalkAnimationKey,
+  HONGHUA_IDLE_FRAMES,
+  HONGHUA_TEXTURE_KEY,
+} from '../animations/honghuaAnimations';
 import { GAME_BALANCE } from '../config/gameBalance';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
@@ -41,9 +47,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   // --- 血條 Graphics ---
   private healthBarGraphics!: Phaser.GameObjects.Graphics;
+  private animationLockUntil = 0;
+  private lastFacing: 'left' | 'right' = 'right';
   
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene, x, y, 'player_texture');
+    super(scene, x, y, HONGHUA_TEXTURE_KEY, HONGHUA_IDLE_FRAMES.right);
     
     this.maxHp = GAME_BALANCE.player.maxHp;
     this.hp = this.maxHp;
@@ -98,11 +106,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.shieldGraphics?.setAlpha(0.3);
         this.scene.time.delayedCall(150, () => this.shieldGraphics?.setAlpha(1));
       }
+      this.playHurtAnimation();
       this.startInvincibility();
       return;
     }
 
     this.hp = Math.max(0, this.hp - amount);
+    this.playHurtAnimation();
     this.startInvincibility();
   }
 
@@ -159,9 +169,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.cursors.left.isDown || this.wasd.A.isDown) {
       this.setVelocityX(-this.speed);
       this.facingDirection = -1;
+      this.lastFacing = 'left';
     } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
       this.setVelocityX(this.speed);
       this.facingDirection = 1;
+      this.lastFacing = 'right';
     } else {
       this.setVelocityX(0);
     }
@@ -189,6 +201,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     // 更新血條
     this._drawHealthBar();
+    this.updateAnimationState();
   }
 
   private _drawHealthBar(): void {
@@ -209,8 +222,49 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   destroy(fromScene?: boolean): void {
+    this.invincibilityTimer?.remove();
+    this.flashTimer?.remove();
     this.healthBarGraphics?.destroy();
     this.shieldGraphics?.destroy();
     super.destroy(fromScene);
+  }
+
+  public playAttackAnimation(): void {
+    this.playLockedAnimation('honghua-attack', 320);
+  }
+
+  public playClimbAnimation(): void {
+    this.playLockedAnimation('honghua-climb', 260);
+  }
+
+  public playThrowAnimation(type: 'qingZai' | 'shuangZi' | 'hongHui' | 'baiHui' | 'baoYe'): void {
+    this.playLockedAnimation(getHonghuaThrowAnimationKey(type), 320);
+  }
+
+  private playHurtAnimation(): void {
+    this.playLockedAnimation('honghua-hurt', 360);
+  }
+
+  private playLockedAnimation(key: string, durationMs: number): void {
+    this.animationLockUntil = this.scene.time.now + durationMs;
+    this.play(key, true);
+  }
+
+  private updateAnimationState(): void {
+    if (!this.active) {
+      return;
+    }
+
+    if (this.scene.time.now < this.animationLockUntil) {
+      return;
+    }
+
+    if (Math.abs(this.body?.velocity.x ?? 0) > 1) {
+      this.play(getHonghuaWalkAnimationKey(this.lastFacing), true);
+      return;
+    }
+
+    this.anims.stop();
+    this.setFrame(HONGHUA_IDLE_FRAMES[this.lastFacing]);
   }
 }

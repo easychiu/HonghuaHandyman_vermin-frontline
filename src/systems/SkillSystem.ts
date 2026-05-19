@@ -41,6 +41,7 @@ export class SkillSystem {
   useQingZai(): boolean {
     if (this.uses.qingZai <= 0) return false;
     this.uses.qingZai--;
+    this.player.playThrowAnimation('qingZai');
     const { range, damage } = GAME_BALANCE.skills.qingZai;
     this.doAoEDamage(this.player.x, this.player.y, range, damage);
     this.showExplosion(this.player.x, this.player.y, range, 0x88ff44, 0x44cc00);
@@ -51,6 +52,7 @@ export class SkillSystem {
   useShuangZi(): boolean {
     if (this.uses.shuangZi <= 0) return false;
     this.uses.shuangZi--;
+    this.player.playThrowAnimation('shuangZi');
     const { range, damage } = GAME_BALANCE.skills.shuangZi;
     this.doAoEDamage(this.player.x, this.player.y, range, damage);
     this.showExplosion(this.player.x, this.player.y, range, 0xffcc44, 0xff8800);
@@ -61,6 +63,7 @@ export class SkillSystem {
   useHongHui(): boolean {
     if (this.uses.hongHui <= 0) return false;
     this.uses.hongHui--;
+    this.player.playThrowAnimation('hongHui');
     const { range, damage, burnDamage, burnIntervalMs, burnDurationMs } = GAME_BALANCE.skills.hongHui;
     const rats = this.getActiveRats();
     rats.forEach((rat) => {
@@ -82,6 +85,7 @@ export class SkillSystem {
   useBaiHui(): boolean {
     if (this.uses.baiHui <= 0) return false;
     this.uses.baiHui--;
+    this.player.playThrowAnimation('baiHui');
     const { range, slowFactor, durationMs } = GAME_BALANCE.skills.baiHui;
     const g = this.scene.add.graphics().setDepth(10);
     g.fillStyle(0xaaddff, 0.25);
@@ -110,6 +114,7 @@ export class SkillSystem {
   useBaoYe(): boolean {
     if (this.uses.baoYe <= 0) return false;
     this.uses.baoYe--;
+    this.player.playThrowAnimation('baoYe');
     this.player.activateShield(GAME_BALANCE.skills.baoYe.shieldHits, GAME_BALANCE.skills.baoYe.radius);
     return true;
   }
