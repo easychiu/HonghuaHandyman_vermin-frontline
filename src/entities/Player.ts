@@ -45,6 +45,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   public isJustPlacingTrap(): boolean {
     return Phaser.Input.Keyboard.JustDown(this.eKey);
   }
+
+  public isTryingClimbUp(): boolean {
+    return this.cursors.up.isDown || this.wasd.W.isDown;
+  }
   // 接收 scene 傳來的 delta (兩幀之間相差的毫秒數)
   update(delta: number): void {
     if (!this.body) return;

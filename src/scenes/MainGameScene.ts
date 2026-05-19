@@ -58,6 +58,7 @@ export class MainGameScene extends Phaser.Scene {
 
     this.physics.add.overlap(this.greenRatPool, pipe, this.handleRatClimbPipe, undefined, this);
     this.physics.add.overlap(this.blueRatPool, pipe, this.handleRatClimbPipe, undefined, this);
+    this.physics.add.overlap(this.player, pipe, this.handlePlayerClimbPipe, undefined, this);
 
     this.spawnInitialHumans();
 
@@ -164,6 +165,27 @@ export class MainGameScene extends Phaser.Scene {
     if (rat.isPanicking) {
       rat.climb();
     }
+  }
+
+  private handlePlayerClimbPipe(
+    playerObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+    pipeObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
+  ): void {
+    const player = playerObj as Player;
+    if (!player.active || !player.body || !player.isTryingClimbUp()) {
+      return;
+    }
+
+    if (player.y <= GAME_BALANCE.world.surfaceY) {
+      return;
+    }
+
+    const pipe = pipeObj as Phaser.Physics.Arcade.StaticImage;
+    const surfaceLandingY =
+      GAME_BALANCE.world.surfaceY - GAME_BALANCE.world.surfacePlatformThickness / 2 - player.displayHeight / 2;
+
+    player.setPosition(pipe.x, surfaceLandingY);
+    player.setVelocityY(-60);
   }
 
   private getActiveRats(): Rat[] {
