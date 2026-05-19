@@ -26,7 +26,7 @@ export class LevelTimerSystem {
         this.timeLeft = Math.max(0, this.timeLeft - 1);
         this.sync();
 
-        if (this.timeLeft === 0) {
+        if (this.timeLeft <= 0) {
           this.stop();
           this.config.onComplete();
         }

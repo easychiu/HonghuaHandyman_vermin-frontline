@@ -26,7 +26,9 @@ export class BossEventController {
     this.config.onStateChange(true);
     this.ensureBossTexture();
 
-    this.bossSprite = this.config.scene.add.image(120, 150, 'boss_texture').setDepth(30);
+    this.bossSprite = this.config.scene
+      .add.image(GAME_BALANCE.level.bossSpriteStartX, GAME_BALANCE.level.bossSpriteY, 'boss_texture')
+      .setDepth(GAME_BALANCE.level.bossSpriteDepth);
     this.bossSprite.setScale(1.1);
 
     this.config.scene.tweens.add({

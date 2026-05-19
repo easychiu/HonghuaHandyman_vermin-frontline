@@ -17,6 +17,9 @@ export const GAME_BALANCE = {
   level: {
     durationSeconds: 90,
     bossDriveDurationMs: 9000,
+    bossSpriteStartX: 120,
+    bossSpriteY: 150,
+    bossSpriteDepth: 30,
   },
   reputation: {
     startingScore: 100,

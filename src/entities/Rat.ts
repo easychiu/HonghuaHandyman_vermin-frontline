@@ -66,7 +66,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    const hpRatio = this.hp / this.maxHp;
+    const hpRatio = this.maxHp > 0 ? this.hp / this.maxHp : 1;
     if (hpRatio <= this.panicThreshold && !this.isPanicking) {
       this.panic();
     } else {

@@ -6,27 +6,27 @@ const REGISTRY_KEYS = {
 } as const;
 
 export class ReputationSystem {
-  private score: number;
+  private reputationScore: number;
   private kills = 0;
 
   constructor(private readonly scene: Phaser.Scene, initialScore: number) {
-    this.score = initialScore;
+    this.reputationScore = initialScore;
     this.syncRegistry();
   }
 
   recordRatKill(points: number): void {
     this.kills += 1;
-    this.score += points;
+    this.reputationScore += points;
     this.syncRegistry();
   }
 
   penalizeHumanSight(points: number): void {
-    this.score = Math.max(0, this.score - points);
+    this.reputationScore = Math.max(0, this.reputationScore - points);
     this.syncRegistry();
   }
 
   private syncRegistry(): void {
-    this.scene.registry.set(REGISTRY_KEYS.score, this.score);
+    this.scene.registry.set(REGISTRY_KEYS.score, this.reputationScore);
     this.scene.registry.set(REGISTRY_KEYS.kills, this.kills);
   }
 }
