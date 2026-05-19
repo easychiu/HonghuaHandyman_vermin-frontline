@@ -120,13 +120,10 @@ export class SkillSystem {
 
     const rats = this.getActiveRats();
     rats.forEach((rat) => {
-      const inAnyZone = this.slowZones.some(
+      const zone = this.slowZones.find(
         (z) => Phaser.Math.Distance.Between(z.x, z.y, rat.x, rat.y) <= z.radius,
       );
-      if (inAnyZone) {
-        const zone = this.slowZones.find(
-          (z) => Phaser.Math.Distance.Between(z.x, z.y, rat.x, rat.y) <= z.radius,
-        )!;
+      if (zone) {
         rat.applySlowField(zone.slowFactor);
       } else {
         rat.resetSlowField();

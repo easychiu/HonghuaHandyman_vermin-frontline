@@ -194,25 +194,18 @@ export class MainGameScene extends Phaser.Scene {
     }
 
     // 技能輸入
-    if (this.player.isJustUsingSkill(1)) {
-      this.skillSystem.useQingZai();
-      this.registry.set('skillUses', { ...this.skillSystem.getRemainingUses() });
-    }
-    if (this.player.isJustUsingSkill(2)) {
-      this.skillSystem.useShuangZi();
-      this.registry.set('skillUses', { ...this.skillSystem.getRemainingUses() });
-    }
-    if (this.player.isJustUsingSkill(3)) {
-      this.skillSystem.useHongHui();
-      this.registry.set('skillUses', { ...this.skillSystem.getRemainingUses() });
-    }
-    if (this.player.isJustUsingSkill(4)) {
-      this.skillSystem.useBaiHui();
-      this.registry.set('skillUses', { ...this.skillSystem.getRemainingUses() });
-    }
-    if (this.player.isJustUsingSkill(5)) {
-      this.skillSystem.useBaoYe();
-      this.registry.set('skillUses', { ...this.skillSystem.getRemainingUses() });
+    const skillActions: Array<[1 | 2 | 3 | 4 | 5, () => boolean]> = [
+      [1, () => this.skillSystem.useQingZai()],
+      [2, () => this.skillSystem.useShuangZi()],
+      [3, () => this.skillSystem.useHongHui()],
+      [4, () => this.skillSystem.useBaiHui()],
+      [5, () => this.skillSystem.useBaoYe()],
+    ];
+    for (const [key, action] of skillActions) {
+      if (this.player.isJustUsingSkill(key)) {
+        action();
+        this.registry.set('skillUses', { ...this.skillSystem.getRemainingUses() });
+      }
     }
 
     // 更新技能系統（慢速區域）
