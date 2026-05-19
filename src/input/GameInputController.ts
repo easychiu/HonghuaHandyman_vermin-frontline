@@ -3,6 +3,8 @@ import Phaser from 'phaser';
 type SkillKey = 1 | 2 | 3 | 4 | 5;
 
 export class GameInputController {
+  private static readonly TOUCH_AUTO_ATTACK_INTERVAL_MS = 220;
+
   private readonly scene: Phaser.Scene;
   private readonly gameEvents: Phaser.Events.EventEmitter;
 
@@ -86,7 +88,17 @@ export class GameInputController {
 
     if (scene.input.keyboard) {
       this.cursors = scene.input.keyboard.createCursorKeys();
-      this.wasd = scene.input.keyboard.addKeys('W,A,S,D') as any;
+      this.wasd = scene.input.keyboard.addKeys({
+        W: Phaser.Input.Keyboard.KeyCodes.W,
+        A: Phaser.Input.Keyboard.KeyCodes.A,
+        S: Phaser.Input.Keyboard.KeyCodes.S,
+        D: Phaser.Input.Keyboard.KeyCodes.D,
+      }) as {
+        W: Phaser.Input.Keyboard.Key;
+        A: Phaser.Input.Keyboard.Key;
+        S: Phaser.Input.Keyboard.Key;
+        D: Phaser.Input.Keyboard.Key;
+      };
       this.spaceKey = scene.input.keyboard.addKey('SPACE');
       this.eKey = scene.input.keyboard.addKey('E');
       this.key1 = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
@@ -134,10 +146,10 @@ export class GameInputController {
       const now = this.scene.time.now;
       if (this.nextTouchAutoAttackAt === 0 || now >= this.nextTouchAutoAttackAt) {
         this.attackJustPressed = true;
-        this.nextTouchAutoAttackAt = now + 220;
+        this.nextTouchAutoAttackAt = now + GameInputController.TOUCH_AUTO_ATTACK_INTERVAL_MS;
       }
     } else if (this.attackJustPressed && this.touchAttackHeld) {
-      this.nextTouchAutoAttackAt = this.scene.time.now + 220;
+      this.nextTouchAutoAttackAt = this.scene.time.now + GameInputController.TOUCH_AUTO_ATTACK_INTERVAL_MS;
     }
 
     this.touchJumpQueued = false;

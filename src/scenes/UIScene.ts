@@ -3,6 +3,8 @@ import { SCENE_KEYS } from '../config/sceneKeys';
 import { defaultHudState, HudState } from '../ui/hud';
 
 export class UIScene extends Phaser.Scene {
+  private static readonly CLIMB_THRESHOLD_RATIO = 0.45;
+
   private topLeftText?: Phaser.GameObjects.Text;
   private bossText?: Phaser.GameObjects.Text;
   private skillText?: Phaser.GameObjects.Text;
@@ -22,8 +24,6 @@ export class UIScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.input.addPointer(4);
-
     this.topLeftText = this.add.text(16, 12, '', {
       color: '#ffffff',
       fontFamily: 'Arial, sans-serif',
@@ -212,7 +212,7 @@ export class UIScene extends Phaser.Scene {
     this.joystickKnob?.setPosition(knobX, knobY);
 
     const normalizedX = Phaser.Math.Clamp(dx / maxDist, -1, 1);
-    const climbHeld = dy < -maxDist * 0.45;
+    const climbHeld = dy < -maxDist * UIScene.CLIMB_THRESHOLD_RATIO;
     const jumpTriggered = climbHeld && !this.lastTouchClimbHeld;
 
     this.game.events.emit('controls:move', normalizedX);
