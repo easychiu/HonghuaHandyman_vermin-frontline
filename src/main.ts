@@ -18,8 +18,8 @@ const config: Phaser.Types.Core.GameConfig = {
   physics: {
     default: 'arcade',
     arcade: {
-      debug: false,
-      gravity: { x: 0, y: 0 },
+      debug: true, // 改為 true，開啟碰撞框顯示
+      gravity: { x: 0, y: 800 }, // 加上 Y 軸重力，讓物件有往下墜落的物理特性
     },
   },
   scene: [BootScene, ReadyScene, MainGameScene],
