@@ -13,6 +13,7 @@ export const GAME_BALANCE = {
     width: 960,
     height: 540,
     surfaceY: 250,
+    surfacePlatformThickness: 20,
   },
   level: {
     durationSeconds: 90,
@@ -37,6 +38,7 @@ export const GAME_BALANCE = {
     bossDriveSpeed: 320,
     bossDrivePulseMs: 450,
     climbTriggerDistance: 28,
+    pipeExitOffset: 90,
     profiles: {
       green: {
         maxHp: 2,

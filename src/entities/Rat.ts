@@ -16,6 +16,8 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
   private edgeCheckTimer = 0;
   private bossTargetPipeX?: number;
   private bossSurfaceY = GAME_BALANCE.world.surfaceY;
+  private escapePipeX?: number;
+  private surfaceY = GAME_BALANCE.world.surfaceY;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, 'rat');
@@ -47,10 +49,17 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.edgeCheckTimer = 0;
     this.bossTargetPipeX = undefined;
     this.bossSurfaceY = GAME_BALANCE.world.surfaceY;
+    this.surfaceY = GAME_BALANCE.world.surfaceY;
 
     if (this.body) {
       (this.body as Phaser.Physics.Arcade.Body).setAllowGravity(true);
     }
+  }
+
+  configureEscapeRoute(pipeX: number, surfaceY: number): void {
+    this.escapePipeX = pipeX;
+    this.surfaceY = surfaceY;
+    this.bossSurfaceY = surfaceY;
   }
 
   takeDamage(amount: number): void {
@@ -116,7 +125,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
       this.currentDirection = -1;
     }
 
-    if (this.shouldTriggerBossClimb(pipeX, surfaceY)) {
+    if (this.shouldTriggerPipeClimb(pipeX, surfaceY)) {
       this.climb();
       return;
     }
@@ -159,20 +168,18 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
       this.setVelocityX(0);
       this.setVelocityY(-220);
 
-      if (this.y < this.bossSurfaceY - 20) {
+      if (this.y < this.surfaceY - 20) {
         this.isClimbing = false;
         this.state = this.isPanicking ? 'panic' : 'wander';
-        (this.body as Phaser.Physics.Arcade.Body).setAllowGravity(true);
-        this.setVelocityY(-150);
-        this.currentDirection = Phaser.Math.Between(0, 1) === 0 ? 1 : -1;
+        this.exitPipeToSurface();
       }
       return;
     }
 
-    if (this.state === 'driven-by-boss' && this.bossTargetPipeX !== undefined && this.y > this.bossSurfaceY) {
-      this.currentDirection = this.x < this.bossTargetPipeX ? 1 : -1;
+    if (this.shouldSeekPipeEscape()) {
+      this.currentDirection = this.x < this.escapePipeX! ? 1 : -1;
 
-      if (Math.abs(this.x - this.bossTargetPipeX) <= GAME_BALANCE.rat.climbTriggerDistance) {
+      if (this.shouldTriggerPipeClimb(this.escapePipeX!, this.surfaceY)) {
         this.climb();
         return;
       }
@@ -198,7 +205,34 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
-  private shouldTriggerBossClimb(pipeX: number, surfaceY: number): boolean {
+  private exitPipeToSurface(): void {
+    const body = this.body as Phaser.Physics.Arcade.Body | undefined;
+    if (!body) {
+      return;
+    }
+
+    const landingY =
+      this.surfaceY - GAME_BALANCE.world.surfacePlatformThickness / 2 - this.displayHeight / 2;
+    const exitX =
+      this.escapePipeX !== undefined
+        ? this.escapePipeX + this.currentDirection * GAME_BALANCE.rat.pipeExitOffset
+        : this.x;
+
+    body.reset(exitX, landingY);
+    body.setAllowGravity(true);
+    this.setVelocityX(this.moveSpeed * this.currentDirection);
+    this.setVelocityY(-60);
+  }
+
+  private shouldSeekPipeEscape(): boolean {
+    return (
+      this.escapePipeX !== undefined &&
+      this.y > this.surfaceY &&
+      (this.state === 'panic' || this.state === 'driven-by-boss')
+    );
+  }
+
+  private shouldTriggerPipeClimb(pipeX: number, surfaceY: number): boolean {
     return this.y > surfaceY && Math.abs(this.x - pipeX) <= GAME_BALANCE.rat.climbTriggerDistance && !this.isClimbing;
   }
 }

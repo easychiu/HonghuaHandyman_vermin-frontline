@@ -91,6 +91,7 @@ export class MainGameScene extends Phaser.Scene {
       blueRatPool: this.blueRatPool,
       portalX,
       portalY,
+      pipeX: pipe.x,
       surfaceY: GAME_BALANCE.world.surfaceY,
     });
     this.ratSpawnerSystem.startAutoSpawn();

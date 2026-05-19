@@ -8,6 +8,7 @@ interface RatSpawnerSystemConfig {
   blueRatPool: Phaser.Physics.Arcade.Group;
   portalX: number;
   portalY: number;
+  pipeX: number;
   surfaceY: number;
 }
 
@@ -46,5 +47,6 @@ export class RatSpawnerSystem {
     }
 
     rat.spawn(x, y, velocityX, faction);
+    rat.configureEscapeRoute(this.config.pipeX, this.config.surfaceY);
   }
 }
