@@ -30,6 +30,7 @@ export class CombatSystem {
 
   handlePlayerAttack(): void {
     const { playerAttackRange, playerAttackHeight, playerAttackDamage } = GAME_BALANCE.combat;
+    this.player.playAttackAnimation();
 
     const attackX =
       this.player.facingDirection === 1

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { ensureHonghuaAnimations } from '../animations/honghuaAnimations';
 import { GAME_BALANCE } from '../config/gameBalance';
 import { SCENE_KEYS } from '../config/sceneKeys';
 import { BossEventController } from '../controllers/BossEventController';
@@ -41,6 +42,7 @@ export class MainGameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#8d99ae');
     this.createBackground(width, height);
     this.createCommonTextures(height);
+    ensureHonghuaAnimations(this);
     this.platforms = this.createPlatforms(width, height);
 
     const pipe = this.physics.add.staticImage(480, GAME_BALANCE.world.surfaceY, 'pipe_texture').setOrigin(0.5, 0);
@@ -255,6 +257,7 @@ export class MainGameScene extends Phaser.Scene {
     const surfaceLandingY =
       GAME_BALANCE.world.surfaceY - GAME_BALANCE.world.surfacePlatformThickness / 2 - player.displayHeight / 2;
 
+    player.playClimbAnimation();
     player.setPosition(pipe.x, surfaceLandingY);
     player.setVelocityY(-60);
   }
@@ -331,14 +334,6 @@ export class MainGameScene extends Phaser.Scene {
       g.fillStyle(0xffffff);
       g.fillRect(0, 0, 24, 24);
       g.generateTexture('rat', 24, 24);
-      g.destroy();
-    }
-
-    if (!this.textures.exists('player_texture')) {
-      const g = this.add.graphics();
-      g.fillStyle(0xe63946);
-      g.fillRect(0, 0, 32, 48);
-      g.generateTexture('player_texture', 32, 48);
       g.destroy();
     }
 
