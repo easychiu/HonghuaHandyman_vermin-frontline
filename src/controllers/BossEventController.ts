@@ -72,6 +72,11 @@ export class BossEventController {
     return this.active;
   }
 
+  getBossPosition(): { x: number; y: number } | null {
+    if (!this.active || !this.bossSprite) return null;
+    return { x: this.bossSprite.x, y: this.bossSprite.y };
+  }
+
   private ensureBossTexture(): void {
     if (this.config.scene.textures.exists('boss_texture')) {
       return;
