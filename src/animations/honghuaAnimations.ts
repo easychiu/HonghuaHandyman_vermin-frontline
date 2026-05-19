@@ -36,6 +36,7 @@ const THROW_ANIMATION_KEYS: Record<HonghuaThrowType, string> = {
   baoYe: HONGHUA_ANIMATION_KEYS.throw1,
 };
 
+// TODO: 有獨立攀爬素材後，改用專屬 climb frame range 取代暫代投擲動作
 const CLIMB_PLACEHOLDER_RANGE = FRAME_RANGES.throw1;
 
 export function ensureHonghuaAnimations(scene: Phaser.Scene): void {
