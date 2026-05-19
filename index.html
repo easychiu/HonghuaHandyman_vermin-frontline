@@ -2,20 +2,39 @@
 <html lang="zh-TW">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>紅花萬事屋：鼠鼠之亂</title>
     <style>
+      html,
       body {
         margin: 0;
         padding: 0;
+        width: 100%;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow: hidden;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      body {
         background-color: #222;
         display: flex;
         justify-content: center;
         align-items: center;
-        height: 100vh;
+      }
+
+      #game-container,
+      #app {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
       }
     </style>
-    <script type="module" crossorigin src="/HonghuaHandyman_vermin-frontline/assets/index-DRQfZSBq.js"></script>
+    <script type="module" crossorigin src="/HonghuaHandyman_vermin-frontline/assets/index-DudCXkx2.js"></script>
   </head>
   <body>
     <div id="game-container"></div>
