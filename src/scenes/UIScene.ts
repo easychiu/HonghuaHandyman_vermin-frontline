@@ -80,7 +80,8 @@ export class UIScene extends Phaser.Scene {
     const isTouchCapable = this.sys.game.device.input.touch || maxTouchPoints > 0;
     const isLikelyMobileViewport = this.scale.width <= 1024;
     const isLikelyMobileOs = this.sys.game.device.os.android || this.sys.game.device.os.iOS;
-    this.touchControlsVisible = isTouchCapable && (isLikelyMobileOs || isLikelyMobileViewport || !this.sys.game.device.os.desktop);
+    const shouldAutoShowTouchUi = !this.sys.game.device.os.desktop || isLikelyMobileOs || isLikelyMobileViewport;
+    this.touchControlsVisible = isTouchCapable && shouldAutoShowTouchUi;
     this.createTouchControls();
     this.applyTouchControlVisibility(this.touchControlsVisible);
     this.game.events.emit('controls:touch-ui-enabled', this.touchControlsVisible);
