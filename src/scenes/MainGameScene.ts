@@ -151,7 +151,7 @@ export class MainGameScene extends Phaser.Scene {
       return;
     }
 
-    if (rat.isPanicking || this.bossController.isActive()) {
+    if (rat.isPanicking) {
       rat.climb();
     }
   }

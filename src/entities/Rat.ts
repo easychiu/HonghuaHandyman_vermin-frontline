@@ -207,16 +207,13 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
 
   private exitPipeToSurface(): void {
     const body = this.body as Phaser.Physics.Arcade.Body | undefined;
-    if (!body) {
+    if (!body || this.escapePipeX === undefined) {
       return;
     }
 
     const landingY =
       this.surfaceY - GAME_BALANCE.world.surfacePlatformThickness / 2 - this.displayHeight / 2;
-    const exitX =
-      this.escapePipeX !== undefined
-        ? this.escapePipeX + this.currentDirection * GAME_BALANCE.rat.pipeExitOffset
-        : this.x;
+    const exitX = this.escapePipeX + this.currentDirection * GAME_BALANCE.rat.pipeExitOffset;
 
     body.reset(exitX, landingY);
     body.setAllowGravity(true);
@@ -225,11 +222,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
   }
 
   private shouldSeekPipeEscape(): boolean {
-    return (
-      this.escapePipeX !== undefined &&
-      this.y > this.surfaceY &&
-      (this.state === 'panic' || this.state === 'driven-by-boss')
-    );
+    return this.escapePipeX !== undefined && this.y > this.surfaceY && this.isPanicking;
   }
 
   private shouldTriggerPipeClimb(pipeX: number, surfaceY: number): boolean {
