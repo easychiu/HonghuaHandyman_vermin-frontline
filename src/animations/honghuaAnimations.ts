@@ -43,6 +43,7 @@ const THROW_ANIMATION_KEYS: Record<HonghuaThrowType, string> = {
 
 export function ensureHonghuaAnimations(scene: Phaser.Scene): void {
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.walkRight, FRAME_RANGES.walkRight.start, FRAME_RANGES.walkRight.end, 12, -1);
+  // 目前素材只有 5 組動作，攀爬時暫用第 3 組「投擲」動作維持流程相容
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.climb, FRAME_RANGES.throw1.start, FRAME_RANGES.throw1.end, 12);
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.attack, FRAME_RANGES.attack.start, FRAME_RANGES.attack.end, 14);
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.throw1, FRAME_RANGES.throw1.start, FRAME_RANGES.throw1.end, 12);
@@ -50,8 +51,7 @@ export function ensureHonghuaAnimations(scene: Phaser.Scene): void {
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.idle, FRAME_RANGES.idle.start, FRAME_RANGES.idle.end, 8, -1);
 }
 
-export function getHonghuaWalkAnimationKey(facing: HonghuaFacing): string {
-  void facing;
+export function getHonghuaWalkAnimationKey(_facing: HonghuaFacing): string {
   return HONGHUA_ANIMATION_KEYS.walkRight;
 }
 
