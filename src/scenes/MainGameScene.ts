@@ -5,7 +5,9 @@ import { Trap } from '../entities/Trap'; // 引入陷阱類別
 import { Human } from '../entities/Human'; // 1. 引入人類類別
 
 export class MainGameScene extends Phaser.Scene {
-  private ratPool!: Phaser.Physics.Arcade.Group;
+  // --- 修改：把 ratPool 拆成兩個 ---
+  private greenRatPool!: Phaser.Physics.Arcade.Group;
+  private blueRatPool!: Phaser.Physics.Arcade.Group;
   private platforms!: Phaser.Physics.Arcade.StaticGroup;
   private player!: Player; // 宣告主角變數
   private trapPool!: Phaser.Physics.Arcade.Group; // 宣告陷阱池
@@ -74,7 +76,7 @@ export class MainGameScene extends Phaser.Scene {
 
 
     // ==========================================
-    // 3. 建立與設定老鼠物件池
+    // 3. 建立老鼠物件池 (分離陣營)
     // ==========================================
     const ratGraphics = this.add.graphics();
     ratGraphics.fillStyle(0xffffff); 
@@ -82,27 +84,49 @@ export class MainGameScene extends Phaser.Scene {
     ratGraphics.generateTexture('rat', 24, 24);
     ratGraphics.destroy();
 
-    this.ratPool = this.physics.add.group({
+    // 建立綠鼠池
+    this.greenRatPool = this.physics.add.group({
       classType: Rat,
       maxSize: 100,
       runChildUpdate: true
     });
 
-    // 讓老鼠會與所有地形（地面層與地下層）發生碰撞
-    this.physics.add.collider(this.ratPool, this.platforms);
+    // 建立藍鼠池
+    this.blueRatPool = this.physics.add.group({
+      classType: Rat,
+      maxSize: 100,
+      runChildUpdate: true
+    });
 
+    // 讓兩種老鼠都會與地形碰撞
+    this.physics.add.collider(this.greenRatPool, this.platforms);
+    this.physics.add.collider(this.blueRatPool, this.platforms);
 
-    // ==========================================
-    // 4. 測試操作：點擊畫面生成綠鼠
-    // ==========================================
+    // --- 效能救星：只偵測綠鼠與藍鼠之間的重疊 ---
+    this.physics.add.overlap(
+      this.greenRatPool, 
+      this.blueRatPool, 
+      this.handleRatBrawl, 
+      undefined, 
+      this
+    );
+
+    // 修改滑鼠點擊生成邏輯
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      const rat = this.ratPool.get() as Rat;
+      const factionToSpawn = pointer.y > 250 ? 'blue' : 'green';
+      // 根據陣營從正確的池子抓老鼠
+      const pool = factionToSpawn === 'green' ? this.greenRatPool : this.blueRatPool;
+      
+      const rat = pool.get() as Rat;
       if (rat) {
-        // 給予一個隨機的橫向移動速度
         const randomVelocityX = Phaser.Math.Between(-150, 150);
-        rat.spawn(pointer.x, pointer.y, randomVelocityX);
+        rat.spawn(pointer.x, pointer.y, randomVelocityX, factionToSpawn);
       }
     });
+    // 讓老鼠會與所有地形（地面層與地下層）發生碰撞
+    this.physics.add.collider(this.greenRatPool, this.platforms);
+    this.physics.add.collider(this.blueRatPool, this.platforms);
+
     // ==========================================
     // 新增：5. 建立主角 (紅花)
     // ==========================================
@@ -134,13 +158,8 @@ export class MainGameScene extends Phaser.Scene {
     });
 
     // 設定老鼠與陷阱的重疊觸發 (Overlap，不用 Collider 因為陷阱不應該阻擋老鼠的物理移動)
-    this.physics.add.overlap(
-      this.ratPool, 
-      this.trapPool, 
-      this.handleRatHitTrap, // 觸發時呼叫的函式
-      undefined, 
-      this
-    );
+    this.physics.add.overlap(this.greenRatPool, this.trapPool, this.handleRatHitTrap, undefined, this);
+    this.physics.add.overlap(this.blueRatPool, this.trapPool, this.handleRatHitTrap, undefined, this);
     // ==========================================
     // 7. 建立人類系統
     // ==========================================
@@ -190,7 +209,24 @@ export class MainGameScene extends Phaser.Scene {
 
     // 取得所有活著的人類與老鼠
     const activeHumans = this.humanPool.getChildren().filter(h => h.active) as Human[];
-    const activeRats = this.ratPool.getChildren().filter(r => r.active) as Rat[];
+    // --- 修改：把綠鼠和藍鼠的陣列合在一起檢查 ---
+    const activeGreen = this.greenRatPool.getChildren().filter(r => r.active) as Rat[];
+    const activeBlue = this.blueRatPool.getChildren().filter(r => r.active) as Rat[];
+    const activeRats = [...activeGreen, ...activeBlue];
+
+    // --- 修改：測試操作，點擊畫面生成老鼠 ---
+    // 修改滑鼠點擊生成邏輯
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      const factionToSpawn = pointer.y > 250 ? 'blue' : 'green';
+      // 根據陣營從正確的池子抓老鼠
+      const pool = factionToSpawn === 'green' ? this.greenRatPool : this.blueRatPool;
+      
+      const rat = pool.get() as Rat;
+      if (rat) {
+        const randomVelocityX = Phaser.Math.Between(-150, 150);
+        rat.spawn(pointer.x, pointer.y, randomVelocityX, factionToSpawn);
+      }
+    });
 
     activeHumans.forEach(human => {
       // 如果這個人已經在逃跑了，就不用再檢查他有沒有看到老鼠
@@ -262,5 +298,20 @@ export class MainGameScene extends Phaser.Scene {
         entity.takeDamage(1); // 扣 1 滴血
       }
     });
+  }
+  // --- 新增：藍綠鼠互咬的邏輯 ---
+  private handleRatBrawl(rat1Obj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, rat2Obj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile): void {
+    const rat1 = rat1Obj as Rat;
+    const rat2 = rat2Obj as Rat;
+
+    // 如果物件已經被回收，直接跳出避免報錯
+    if (!rat1 || !rat2 || !rat1.active || !rat2.active) return;
+
+    if (rat1.faction !== rat2.faction) {
+      if (rat1.isPanicking || rat2.isPanicking) return;
+
+      rat1.takeDamage(1);
+      rat2.takeDamage(1);
+    }
   }
 }
