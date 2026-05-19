@@ -22,7 +22,7 @@ export class ReputationSystem {
     this.syncRegistry();
   }
 
-  penalizeHumanSight(points: number): void {
+  recordScaredHuman(points: number): void {
     this.reputationScore = Math.max(0, this.reputationScore - points);
     this.scaredHumans += 1;
     this.syncRegistry();

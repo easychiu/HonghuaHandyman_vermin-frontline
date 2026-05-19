@@ -78,7 +78,7 @@ export class MainGameScene extends Phaser.Scene {
       humanPool: this.humanPool,
       getActiveRats: () => this.getActiveRats(),
       panicRadius: GAME_BALANCE.human.sightRadius,
-      onHumanSawRat: () => this.reputationSystem.penalizeHumanSight(GAME_BALANCE.reputation.humanSightPenalty),
+      onHumanSawRat: () => this.reputationSystem.recordScaredHuman(GAME_BALANCE.reputation.humanSightPenalty),
     });
 
     const portalX = width - 40;
