@@ -23,6 +23,7 @@ export class UIScene extends Phaser.Scene {
   private attackButton?: Phaser.GameObjects.Arc;
   private leftZone?: Phaser.GameObjects.Zone;
   private touchControlObjects: Phaser.GameObjects.GameObject[] = [];
+  private debugPointerSpawnEnabled = false;
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
     if (!this.touchControlsVisible || this.joystickPointerId !== pointer.id) {
@@ -99,7 +100,11 @@ export class UIScene extends Phaser.Scene {
       });
     this.refreshTouchToggleText();
 
+    this.debugPointerSpawnEnabled = Boolean(this.registry.get('debugPointerSpawnEnabled'));
+    this.registry.events.on('changedata-debugPointerSpawnEnabled', this.onDebugPointerSpawnChanged, this);
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.registry.events.off('changedata-debugPointerSpawnEnabled', this.onDebugPointerSpawnChanged, this);
       this.cleanupTouchControls();
     });
   }
@@ -134,8 +139,7 @@ export class UIScene extends Phaser.Scene {
       `[5] E.包葉檳榔  ${s.baoYe}x  🛡護盾(3次)`,
     );
 
-    const debugEnabled = Boolean(this.registry.get('debugPointerSpawnEnabled'));
-    this.refreshTouchToggleText(debugEnabled);
+    this.refreshTouchToggleText(this.debugPointerSpawnEnabled);
   }
 
   private createTouchControls(): void {
@@ -277,8 +281,15 @@ export class UIScene extends Phaser.Scene {
   }
 
   private isJoystickMovingUpward(deltaY: number, maxDistance: number): boolean {
-    // Phaser 座標系中 y 軸向下為正，因此「往上推」會是負值。
+    // In Phaser's coordinate system, y grows downward, so upward motion is negative.
     return deltaY < -maxDistance * UIScene.CLIMB_THRESHOLD_RATIO;
+  }
+
+  private onDebugPointerSpawnChanged(
+    _parent: Phaser.Data.DataManager,
+    value: unknown,
+  ): void {
+    this.debugPointerSpawnEnabled = Boolean(value);
   }
 
   private refreshTouchToggleText(debugPointerSpawnEnabled = false): void {
