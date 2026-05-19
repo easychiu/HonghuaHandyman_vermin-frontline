@@ -4,6 +4,7 @@ import { defaultHudState, HudState } from '../ui/hud';
 
 export class UIScene extends Phaser.Scene {
   private static readonly CLIMB_THRESHOLD_RATIO = 0.45;
+  private static readonly JOYSTICK_ZONE_WIDTH_RATIO = 0.48;
 
   private topLeftText?: Phaser.GameObjects.Text;
   private bossText?: Phaser.GameObjects.Text;
@@ -110,7 +111,11 @@ export class UIScene extends Phaser.Scene {
     this.joystickKnob = this.add.circle(this.joystickCenter.x, this.joystickCenter.y, 24, 0xffffff, 0.65)
       .setDepth(1060);
 
-    const leftZone = this.add.zone(0, h - 240, this.scale.width * 0.48, 240).setOrigin(0, 0).setDepth(1040);
+    const leftZone = this
+      .add
+      .zone(0, h - 240, this.scale.width * UIScene.JOYSTICK_ZONE_WIDTH_RATIO, 240)
+      .setOrigin(0, 0)
+      .setDepth(1040);
     leftZone.setInteractive();
     leftZone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (!this.touchControlsVisible || this.joystickPointerId !== null) {

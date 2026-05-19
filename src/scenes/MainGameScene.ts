@@ -255,7 +255,7 @@ export class MainGameScene extends Phaser.Scene {
     pipeObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
   ): void {
     const player = playerObj as Player;
-    if (!player.active || !player.body || !player.isTryingClimbUp()) {
+    if (!player.active || !player.body || !this.inputController.isClimbUpHeld()) {
       return;
     }
 

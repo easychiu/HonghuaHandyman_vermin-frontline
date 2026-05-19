@@ -50,23 +50,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.healthBarGraphics = scene.add.graphics().setDepth(50);
   }
 
-  // --- 攻擊偵測 ---
-  public isJustAttacking(): boolean {
-    return this.inputController.isAttackJustPressed();
-  }
-  // --- 放置陷阱偵測 ---
-  public isJustPlacingTrap(): boolean {
-    return this.inputController.isTrapJustPressed();
-  }
-  // --- 技能按鍵偵測 ---
-  public isJustUsingSkill(n: 1 | 2 | 3 | 4 | 5): boolean {
-    return this.inputController.isSkillJustPressed(n);
-  }
-
-  public isTryingClimbUp(): boolean {
-    return this.inputController.isClimbUpHeld();
-  }
-
   // --- 受傷處理 ---
   public receiveRatDamage(amount: number): void {
     if (this.isInvincible || !this.active) return;

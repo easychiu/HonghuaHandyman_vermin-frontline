@@ -146,10 +146,10 @@ export class GameInputController {
       const now = this.scene.time.now;
       if (this.nextTouchAutoAttackAt === 0 || now >= this.nextTouchAutoAttackAt) {
         this.attackJustPressed = true;
-        this.nextTouchAutoAttackAt = now + GameInputController.TOUCH_AUTO_ATTACK_INTERVAL_MS;
+        this.scheduleNextTouchAutoAttack(now);
       }
     } else if (this.attackJustPressed && this.touchAttackHeld) {
-      this.nextTouchAutoAttackAt = this.scene.time.now + GameInputController.TOUCH_AUTO_ATTACK_INTERVAL_MS;
+      this.scheduleNextTouchAutoAttack(this.scene.time.now);
     }
 
     this.touchJumpQueued = false;
@@ -198,5 +198,9 @@ export class GameInputController {
 
   private isJustDown(key?: Phaser.Input.Keyboard.Key): boolean {
     return !!key && Phaser.Input.Keyboard.JustDown(key);
+  }
+
+  private scheduleNextTouchAutoAttack(now: number): void {
+    this.nextTouchAutoAttackAt = now + GameInputController.TOUCH_AUTO_ATTACK_INTERVAL_MS;
   }
 }
