@@ -81,7 +81,7 @@ export function ensureHonghuaAnimations(scene: Phaser.Scene): void {
     poses.forEach((pose, frameIndex) => drawFrame(ctx, frameIndex, pose));
 
     texture.refresh();
-    scene.textures.addSpriteSheet('', texture, {
+    scene.textures.addSpriteSheet(HONGHUA_TEXTURE_KEY, texture, {
       frameWidth: FRAME_WIDTH,
       frameHeight: FRAME_HEIGHT,
       endFrame: TOTAL_FRAMES - 1,

@@ -251,7 +251,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   private updateAnimationState(): void {
-    if (!this.active) {
+    if (!this.active || !this.body) {
       return;
     }
 
@@ -259,7 +259,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    if (Math.abs(this.body?.velocity.x ?? 0) > 1) {
+    if (Math.abs(this.body.velocity.x) > 1) {
       this.play(getHonghuaWalkAnimationKey(this.lastFacing), true);
       return;
     }
