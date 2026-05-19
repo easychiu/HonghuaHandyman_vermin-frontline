@@ -17,6 +17,9 @@ const config: Phaser.Types.Core.GameConfig = {
   width: GAME_BALANCE.world.width,
   height: GAME_BALANCE.world.height,
   backgroundColor: '#000000',
+  input: {
+    activePointers: 5,
+  },
   physics: {
     default: 'arcade',
     arcade: {

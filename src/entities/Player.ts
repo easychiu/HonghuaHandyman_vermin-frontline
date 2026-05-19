@@ -6,15 +6,10 @@ import {
   HONGHUA_TEXTURE_KEY,
 } from '../animations/honghuaAnimations';
 import { GAME_BALANCE } from '../config/gameBalance';
+import { GameInputController } from '../input/GameInputController';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private wasd!: {
-    W: Phaser.Input.Keyboard.Key;
-    A: Phaser.Input.Keyboard.Key;
-    S: Phaser.Input.Keyboard.Key;
-    D: Phaser.Input.Keyboard.Key;
-  };
+  private readonly inputController: GameInputController;
   
   private speed = 250; 
   private jumpForce = -500;
@@ -22,17 +17,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   // --- Coyote Time 相關變數 ---
   private coyoteTime = 150; // 允許離開平台後還能起跳的寬容時間 (毫秒)
   private coyoteCounter = 0; // 當前的倒數計時器
-  // --- 面向與攻擊按鍵 ---
+  // --- 面向 ---
   public facingDirection = 1; // 1: 右, -1: 左
-  private spaceKey!: Phaser.Input.Keyboard.Key;
-  // --- 放置陷阱按鍵 ---
-  private eKey!: Phaser.Input.Keyboard.Key;
-  // --- 技能按鍵 1-5 ---
-  private key1!: Phaser.Input.Keyboard.Key;
-  private key2!: Phaser.Input.Keyboard.Key;
-  private key3!: Phaser.Input.Keyboard.Key;
-  private key4!: Phaser.Input.Keyboard.Key;
-  private key5!: Phaser.Input.Keyboard.Key;
 
   // --- 血量系統 ---
   public hp: number;
@@ -50,8 +36,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private animationLockUntil = 0;
   private lastFacing: 'left' | 'right' = 'right';
   
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, inputController: GameInputController) {
     super(scene, x, y, HONGHUA_TEXTURE_KEY, HONGHUA_IDLE_FRAMES.right);
+    this.inputController = inputController;
     
     this.maxHp = GAME_BALANCE.player.maxHp;
     this.hp = this.maxHp;
@@ -59,38 +46,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setCollideWorldBounds(true);
-    
-    if (scene.input.keyboard) {
-        this.cursors = scene.input.keyboard.createCursorKeys();
-        this.wasd = scene.input.keyboard.addKeys('W,A,S,D') as any;
-        this.spaceKey = scene.input.keyboard.addKey('SPACE');
-        this.eKey = scene.input.keyboard.addKey('E');
-        this.key1 = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
-        this.key2 = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO);
-        this.key3 = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE);
-        this.key4 = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.FOUR);
-        this.key5 = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.FIVE);
-    }
 
     this.healthBarGraphics = scene.add.graphics().setDepth(50);
-  }
-
-  // --- 攻擊偵測 ---
-  public isJustAttacking(): boolean {
-    return Phaser.Input.Keyboard.JustDown(this.spaceKey);
-  }
-  // --- 放置陷阱偵測 ---
-  public isJustPlacingTrap(): boolean {
-    return Phaser.Input.Keyboard.JustDown(this.eKey);
-  }
-  // --- 技能按鍵偵測 ---
-  public isJustUsingSkill(n: 1 | 2 | 3 | 4 | 5): boolean {
-    const keyMap = { 1: this.key1, 2: this.key2, 3: this.key3, 4: this.key4, 5: this.key5 };
-    return Phaser.Input.Keyboard.JustDown(keyMap[n]);
-  }
-
-  public isTryingClimbUp(): boolean {
-    return this.cursors.up.isDown || this.wasd.W.isDown;
   }
 
   // --- 受傷處理 ---
@@ -166,11 +123,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (!this.body) return;
 
     // 處理左右移動與更新面向
-    if (this.cursors.left.isDown || this.wasd.A.isDown) {
+    const moveAxisX = this.inputController.getMoveAxisX();
+    if (moveAxisX < -0.1) {
       this.setVelocityX(-this.speed);
       this.facingDirection = -1;
       this.lastFacing = 'left';
-    } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+    } else if (moveAxisX > 0.1) {
       this.setVelocityX(this.speed);
       this.facingDirection = 1;
       this.lastFacing = 'right';
@@ -187,7 +145,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.coyoteCounter -= delta;
     }
 
-    const isJumpJustDown = Phaser.Input.Keyboard.JustDown(this.cursors.up) || Phaser.Input.Keyboard.JustDown(this.wasd.W);
+    const isJumpJustDown = this.inputController.isJumpJustPressed();
 
     if (isJumpJustDown && this.coyoteCounter > 0) {
       this.setVelocityY(this.jumpForce);

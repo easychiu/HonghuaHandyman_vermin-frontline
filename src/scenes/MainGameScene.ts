@@ -14,6 +14,7 @@ import { RatSpawnerSystem } from '../systems/RatSpawnerSystem';
 import { ReputationSystem } from '../systems/ReputationSystem';
 import { SkillSystem } from '../systems/SkillSystem';
 import { TrapSystem } from '../systems/TrapSystem';
+import { GameInputController } from '../input/GameInputController';
 
 export class MainGameScene extends Phaser.Scene {
   private greenRatPool!: Phaser.Physics.Arcade.Group;
@@ -31,6 +32,8 @@ export class MainGameScene extends Phaser.Scene {
   private bossController!: BossEventController;
   private reputationSystem!: ReputationSystem;
   private skillSystem!: SkillSystem;
+  private inputController!: GameInputController;
+  private debugPointerSpawnEnabled = false;
 
   constructor() {
     super(SCENE_KEYS.mainGame);
@@ -53,7 +56,8 @@ export class MainGameScene extends Phaser.Scene {
     this.trapPool = this.physics.add.group({ classType: Trap, maxSize: 20, runChildUpdate: false });
     this.humanPool = this.physics.add.group({ classType: Human, maxSize: 10, runChildUpdate: true });
 
-    this.player = new Player(this, 100, 100);
+    this.inputController = new GameInputController(this);
+    this.player = new Player(this, 100, 100, this.inputController);
 
     // 初始化 registry 血量資料
     this.registry.set('playerHp', this.player.hp);
@@ -172,26 +176,32 @@ export class MainGameScene extends Phaser.Scene {
       this.scene.launch(SCENE_KEYS.ui);
     }
 
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      this.ratSpawnerSystem.spawnByPointer(pointer);
-    });
+    this.debugPointerSpawnEnabled = new URLSearchParams(window.location.search).get('debugSpawn') === '1';
+    this.registry.set('debugPointerSpawnEnabled', this.debugPointerSpawnEnabled);
+    if (this.debugPointerSpawnEnabled) {
+      this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        this.ratSpawnerSystem.spawnByPointer(pointer);
+      });
+    }
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.ratSpawnerSystem.stop();
       this.levelTimerSystem.stop();
       this.bossController.stop();
+      this.inputController.destroy();
       this.scene.stop(SCENE_KEYS.ui);
     });
   }
 
   update(_time: number, delta: number): void {
+    this.inputController.update();
     this.player.update(delta);
 
-    if (this.player.isJustAttacking()) {
+    if (this.inputController.isAttackJustPressed()) {
       this.combatSystem.handlePlayerAttack();
     }
 
-    if (this.player.isJustPlacingTrap()) {
+    if (this.inputController.isTrapJustPressed()) {
       this.trapSystem.placeTrap();
     }
 
@@ -204,7 +214,7 @@ export class MainGameScene extends Phaser.Scene {
       [5, () => this.skillSystem.useBaoYe()],
     ];
     for (const [key, action] of skillActions) {
-      if (this.player.isJustUsingSkill(key)) {
+      if (this.inputController.isSkillJustPressed(key)) {
         action();
         this.registry.set('skillUses', { ...this.skillSystem.getRemainingUses() });
       }
@@ -245,7 +255,7 @@ export class MainGameScene extends Phaser.Scene {
     pipeObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
   ): void {
     const player = playerObj as Player;
-    if (!player.active || !player.body || !player.isTryingClimbUp()) {
+    if (!player.active || !player.body || !this.inputController.isClimbUpHeld()) {
       return;
     }
 

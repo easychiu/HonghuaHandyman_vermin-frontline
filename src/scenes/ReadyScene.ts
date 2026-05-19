@@ -19,12 +19,17 @@ export class ReadyScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(width / 2, height / 2 + 20, 'WASD/方向鍵移動・空白攻擊・E 放置陷阱\n點擊畫面可追加老鼠壓力測試', {
+      .text(
+        width / 2,
+        height / 2 + 20,
+        '桌機：WASD/方向鍵移動・空白攻擊・E 放置陷阱・1~5 技能\n手機：左下虛擬搖桿（上推可跳躍/爬管）・右下觸控按鈕\n壓力測試加鼠僅限 debugSpawn=1 模式',
+        {
         color: '#f1faee',
         fontFamily: 'Arial, sans-serif',
         fontSize: '18px',
         align: 'center',
-      })
+        },
+      )
       .setOrigin(0.5);
 
     this.input.once('pointerdown', () => {
