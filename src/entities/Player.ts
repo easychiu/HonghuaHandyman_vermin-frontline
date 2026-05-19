@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import {
+  getHonghuaIdleAnimationKey,
   getHonghuaThrowAnimationKey,
   getHonghuaWalkAnimationKey,
   HONGHUA_IDLE_FRAMES,
@@ -47,6 +48,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
     this.setScale(2);
     this.setCollideWorldBounds(true);
+    this.setFlipX(false);
 
     this.healthBarGraphics = scene.add.graphics().setDepth(50);
   }
@@ -129,10 +131,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.setVelocityX(-this.speed);
       this.facingDirection = -1;
       this.lastFacing = 'left';
+      this.setFlipX(true);
     } else if (moveAxisX > 0.1) {
       this.setVelocityX(this.speed);
       this.facingDirection = 1;
       this.lastFacing = 'right';
+      this.setFlipX(false);
     } else {
       this.setVelocityX(0);
     }
@@ -223,7 +227,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    this.anims.stop();
-    this.setFrame(HONGHUA_IDLE_FRAMES[this.lastFacing]);
+    this.play(getHonghuaIdleAnimationKey(), true);
   }
 }
