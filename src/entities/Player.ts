@@ -212,6 +212,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.animationLockUntil = this.scene.time.now + durationMs;
     if (this.scene.anims.exists(key)) {
       this.play(key, true);
+    } else {
+      console.warn(`Animation "${key}" does not exist`);
     }
   }
 
@@ -224,18 +226,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    const walkKey = getHonghuaWalkAnimationKey();
-    const idleKey = getHonghuaIdleAnimationKey();
-
     if (Math.abs(this.body.velocity.x) > 1) {
+      const walkKey = getHonghuaWalkAnimationKey();
       if (this.scene.anims.exists(walkKey)) {
         this.play(walkKey, true);
+      } else {
+        console.warn(`Animation "${walkKey}" does not exist`);
       }
       return;
     }
 
+    const idleKey = getHonghuaIdleAnimationKey();
     if (this.scene.anims.exists(idleKey)) {
       this.play(idleKey, true);
+    } else {
+      console.warn(`Animation "${idleKey}" does not exist`);
     }
   }
 }
