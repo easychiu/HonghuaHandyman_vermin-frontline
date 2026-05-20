@@ -2,16 +2,17 @@ import Phaser from 'phaser';
 
 // spritesheet 規格：
 // 單一 frame 尺寸：64 × 72
-// 每個動作 8 個 frame，共 5 個動作
+// 每個動作 6 個 frame，共 5 個動作
 export const FRAME_WIDTH = 64;
 export const FRAME_HEIGHT = 72;
 
 const FRAME_RANGES = {
-  walkRight: { start: 0, end: 7 },
-  attack: { start: 8, end: 15 },
-  throw1: { start: 16, end: 23 },
-  hurt: { start: 24, end: 31 },
-  idle: { start: 32, end: 39 },
+  walkRight: { start: 0, end: 5 },
+  climb: { start: 6, end: 11 },
+  attack: { start: 12, end: 17 },
+  throw1: { start: 18, end: 23 },
+  hurt: { start: 24, end: 29 },
+  idle: { start: 30, end: 35 },
 } as const;
 
 export const HONGHUA_TEXTURE_KEY = 'honghua';
