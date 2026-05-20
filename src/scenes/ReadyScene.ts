@@ -38,6 +38,7 @@ export class ReadyScene extends Phaser.Scene {
         return;
       }
       started = true;
+      this.input.keyboard?.off('keydown', onKeyboardStart);
       this.scene.start(SCENE_KEYS.mainGame);
     };
     const onKeyboardStart = (event: KeyboardEvent) => {
