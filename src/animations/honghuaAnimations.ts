@@ -73,6 +73,12 @@ function createAnimation(
     return;
   }
 
+  // Check if texture exists before creating animation
+  if (!scene.textures.exists(HONGHUA_TEXTURE_KEY)) {
+    console.error(`Cannot create animation "${key}": texture "${HONGHUA_TEXTURE_KEY}" not loaded`);
+    return;
+  }
+
   scene.anims.create({
     key,
     frames: scene.anims.generateFrameNumbers(HONGHUA_TEXTURE_KEY, { start, end }),

@@ -210,7 +210,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   private playLockedAnimation(key: string, durationMs: number): void {
     this.animationLockUntil = this.scene.time.now + durationMs;
-    this.play(key, true);
+    if (this.scene.anims.exists(key)) {
+      this.play(key, true);
+    }
   }
 
   private updateAnimationState(): void {
@@ -222,11 +224,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
+    const walkKey = getHonghuaWalkAnimationKey();
+    const idleKey = getHonghuaIdleAnimationKey();
+
     if (Math.abs(this.body.velocity.x) > 1) {
-      this.play(getHonghuaWalkAnimationKey(), true);
+      if (this.scene.anims.exists(walkKey)) {
+        this.play(walkKey, true);
+      }
       return;
     }
 
-    this.play(getHonghuaIdleAnimationKey(), true);
+    if (this.scene.anims.exists(idleKey)) {
+      this.play(idleKey, true);
+    }
   }
 }
