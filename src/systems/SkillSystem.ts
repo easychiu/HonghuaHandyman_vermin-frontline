@@ -42,9 +42,10 @@ export class SkillSystem {
     if (this.uses.qingZai <= 0) return false;
     this.uses.qingZai--;
     this.player.playThrowAnimation('qingZai');
-    const { range, damage } = GAME_BALANCE.skills.qingZai;
-    this.doAoEDamage(this.player.x, this.player.y, range, damage);
-    this.showExplosion(this.player.x, this.player.y, range, 0x88ff44, 0x44cc00);
+    const { range, damage, throwDistance } = GAME_BALANCE.skills.qingZai;
+    const impact = this.getThrowImpactPosition(throwDistance);
+    this.doAoEDamage(impact.x, impact.y, range, damage);
+    this.showExplosion(impact.x, impact.y, range, 0x88ff44, 0x44cc00);
     return true;
   }
 
@@ -53,9 +54,10 @@ export class SkillSystem {
     if (this.uses.shuangZi <= 0) return false;
     this.uses.shuangZi--;
     this.player.playThrowAnimation('shuangZi');
-    const { range, damage } = GAME_BALANCE.skills.shuangZi;
-    this.doAoEDamage(this.player.x, this.player.y, range, damage);
-    this.showExplosion(this.player.x, this.player.y, range, 0xffcc44, 0xff8800);
+    const { range, damage, throwDistance } = GAME_BALANCE.skills.shuangZi;
+    const impact = this.getThrowImpactPosition(throwDistance);
+    this.doAoEDamage(impact.x, impact.y, range, damage);
+    this.showExplosion(impact.x, impact.y, range, 0xffcc44, 0xff8800);
     return true;
   }
 
@@ -64,10 +66,11 @@ export class SkillSystem {
     if (this.uses.hongHui <= 0) return false;
     this.uses.hongHui--;
     this.player.playThrowAnimation('hongHui');
-    const { range, damage, burnDamage, burnIntervalMs, burnDurationMs } = GAME_BALANCE.skills.hongHui;
+    const { range, damage, burnDamage, burnIntervalMs, burnDurationMs, throwDistance } = GAME_BALANCE.skills.hongHui;
+    const impact = this.getThrowImpactPosition(throwDistance);
     const rats = this.getActiveRats();
     rats.forEach((rat) => {
-      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, rat.x, rat.y) <= range) {
+      if (Phaser.Math.Distance.Between(impact.x, impact.y, rat.x, rat.y) <= range) {
         const wasActive = rat.active;
         rat.takeDamage(damage);
         if (wasActive && !rat.active) {
@@ -77,7 +80,7 @@ export class SkillSystem {
         }
       }
     });
-    this.showExplosion(this.player.x, this.player.y, range, 0xff6600, 0xff2200);
+    this.showExplosion(impact.x, impact.y, range, 0xff6600, 0xff2200);
     return true;
   }
 
@@ -86,16 +89,17 @@ export class SkillSystem {
     if (this.uses.baiHui <= 0) return false;
     this.uses.baiHui--;
     this.player.playThrowAnimation('baiHui');
-    const { range, slowFactor, durationMs } = GAME_BALANCE.skills.baiHui;
+    const { range, slowFactor, durationMs, throwDistance } = GAME_BALANCE.skills.baiHui;
+    const impact = this.getThrowImpactPosition(throwDistance);
     const g = this.scene.add.graphics().setDepth(10);
     g.fillStyle(0xaaddff, 0.25);
-    g.fillCircle(this.player.x, this.player.y, range);
+    g.fillCircle(impact.x, impact.y, range);
     g.lineStyle(2, 0x88bbff, 0.9);
-    g.strokeCircle(this.player.x, this.player.y, range);
+    g.strokeCircle(impact.x, impact.y, range);
 
     const zone: SlowZone = {
-      x: this.player.x,
-      y: this.player.y,
+      x: impact.x,
+      y: impact.y,
       radius: range,
       slowFactor,
       active: true,
@@ -163,5 +167,13 @@ export class SkillSystem {
       ease: 'Power2',
       onComplete: () => g.destroy(),
     });
+  }
+
+  private getThrowImpactPosition(distance: number): { x: number; y: number } {
+    const direction = this.player.facingDirection >= 0 ? 1 : -1;
+    return {
+      x: Phaser.Math.Clamp(this.player.x + direction * distance, 0, this.scene.scale.width),
+      y: Phaser.Math.Clamp(this.player.y, 0, this.scene.scale.height),
+    };
   }
 }

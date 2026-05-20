@@ -66,10 +66,10 @@ export const GAME_BALANCE = {
     flashIntervalMs: 100,
   },
   skills: {
-    qingZai:  { range: 120, damage: 3, uses: 3 },
-    shuangZi: { range: 200, damage: 4, uses: 2 },
-    hongHui:  { range: 120, damage: 2, burnDamage: 1, burnIntervalMs: 600, burnDurationMs: 3000, uses: 1 },
-    baiHui:   { range: 200, slowFactor: 0.3, durationMs: 4000, uses: 1 },
+    qingZai:  { range: 120, damage: 3, throwDistance: 140, uses: 3 },
+    shuangZi: { range: 200, damage: 4, throwDistance: 170, uses: 2 },
+    hongHui:  { range: 120, damage: 2, burnDamage: 1, burnIntervalMs: 600, burnDurationMs: 3000, throwDistance: 150, uses: 1 },
+    baiHui:   { range: 200, slowFactor: 0.3, durationMs: 4000, throwDistance: 170, uses: 1 },
     baoYe:    { shieldHits: 3, radius: 60, uses: 1 },
   },
   collision: {

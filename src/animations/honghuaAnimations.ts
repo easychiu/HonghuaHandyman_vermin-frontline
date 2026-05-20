@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 
 // spritesheet 規格：
 // 單一 frame 尺寸：64 × 72
-// 每個動作 6 個 frame，共 5 個動作
+// 每個動作 6 個 frame（含攀爬）
 export const FRAME_WIDTH = 64;
 export const FRAME_HEIGHT = 72;
 
@@ -37,13 +37,9 @@ const THROW_ANIMATION_KEYS: Record<HonghuaThrowType, string> = {
   baoYe: HONGHUA_ANIMATION_KEYS.throw1,
 };
 
-// TODO: 有獨立攀爬素材後，改用專屬 climb frame range 取代目前暫時代替的投擲動作
-const CLIMB_PLACEHOLDER_RANGE = FRAME_RANGES.throw1;
-
 export function ensureHonghuaAnimations(scene: Phaser.Scene): void {
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.walkRight, FRAME_RANGES.walkRight.start, FRAME_RANGES.walkRight.end, 12, -1);
-  // 目前素材只有 5 組動作，攀爬時暫用第 3 組「投擲」動作維持流程相容
-  createAnimation(scene, HONGHUA_ANIMATION_KEYS.climb, CLIMB_PLACEHOLDER_RANGE.start, CLIMB_PLACEHOLDER_RANGE.end, 12, -1);
+  createAnimation(scene, HONGHUA_ANIMATION_KEYS.climb, FRAME_RANGES.climb.start, FRAME_RANGES.climb.end, 12, -1);
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.attack, FRAME_RANGES.attack.start, FRAME_RANGES.attack.end, 14);
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.throw1, FRAME_RANGES.throw1.start, FRAME_RANGES.throw1.end, 12);
   createAnimation(scene, HONGHUA_ANIMATION_KEYS.hurt, FRAME_RANGES.hurt.start, FRAME_RANGES.hurt.end, 12);
