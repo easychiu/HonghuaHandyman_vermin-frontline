@@ -64,9 +64,7 @@ export class ReadyScene extends Phaser.Scene {
         startGame();
       }
     };
-    const onPointerStart = () => startGame();
-
-    startZone.once('pointerdown', onPointerStart);
+    startZone.once('pointerdown', startGame);
     this.input.keyboard?.on('keydown', onKeyboardStart);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.input.keyboard?.off('keydown', onKeyboardStart);
