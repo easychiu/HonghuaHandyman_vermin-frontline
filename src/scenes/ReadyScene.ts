@@ -40,9 +40,8 @@ export class ReadyScene extends Phaser.Scene {
       started = true;
       this.scene.start(SCENE_KEYS.mainGame);
     };
-    const onKeyboardStart = (event: unknown) => {
-      const { code, key } = (event ?? {}) as { code?: string; key?: string };
-      if (code === 'Space' || code === 'Enter' || key === ' ' || key === 'Enter') {
+    const onKeyboardStart = (event: KeyboardEvent) => {
+      if (event.code === 'Space' || event.code === 'Enter') {
         startGame();
       }
     };
