@@ -210,10 +210,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   private playLockedAnimation(key: string, durationMs: number): void {
     this.animationLockUntil = this.scene.time.now + durationMs;
-    if (this.scene.anims.exists(key)) {
+    const anim = this.scene.anims.get(key);
+    if (anim && anim.frames.length > 0) {
       this.play(key, true);
     } else {
-      console.warn(`Animation "${key}" does not exist`);
+      console.warn(`Animation "${key}" has no frames, skipping`);
     }
   }
 
@@ -228,19 +229,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     if (Math.abs(this.body.velocity.x) > 1) {
       const walkKey = getHonghuaWalkAnimationKey();
-      if (this.scene.anims.exists(walkKey)) {
+      const walkAnim = this.scene.anims.get(walkKey);
+      if (walkAnim && walkAnim.frames.length > 0) {
         this.play(walkKey, true);
       } else {
-        console.warn(`Animation "${walkKey}" does not exist`);
+        console.warn(`Animation "${walkKey}" has no frames, skipping`);
       }
       return;
     }
 
     const idleKey = getHonghuaIdleAnimationKey();
-    if (this.scene.anims.exists(idleKey)) {
+    const idleAnim = this.scene.anims.get(idleKey);
+    if (idleAnim && idleAnim.frames.length > 0) {
       this.play(idleKey, true);
     } else {
-      console.warn(`Animation "${idleKey}" does not exist`);
+      console.warn(`Animation "${idleKey}" has no frames, skipping`);
     }
   }
 }

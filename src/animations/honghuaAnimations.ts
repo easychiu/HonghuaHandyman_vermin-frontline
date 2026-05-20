@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 
 // spritesheet 規格：
-// 單一 frame 尺寸：64 × 72
-// 每個動作 8 個 frame，共 5 個動作
-export const FRAME_WIDTH = 64;
-export const FRAME_HEIGHT = 72;
+// 單一 frame 尺寸：31 × 61
+// 每個動作 8 個 frame，共 5 個動作（8 行 × 8 列 = 64 個 frame slots）
+export const FRAME_WIDTH = 31;
+export const FRAME_HEIGHT = 61;
 
 const FRAME_RANGES = {
   walkRight: { start: 0, end: 7 },
@@ -79,9 +79,15 @@ function createAnimation(
     return;
   }
 
+  const frames = scene.anims.generateFrameNumbers(HONGHUA_TEXTURE_KEY, { start, end });
+  if (frames.length === 0) {
+    console.error(`Cannot create animation "${key}": no frames generated for "${HONGHUA_TEXTURE_KEY}" (frames ${start}-${end}). Check FRAME_WIDTH/FRAME_HEIGHT vs actual spritesheet dimensions.`);
+    return;
+  }
+
   scene.anims.create({
     key,
-    frames: scene.anims.generateFrameNumbers(HONGHUA_TEXTURE_KEY, { start, end }),
+    frames,
     frameRate,
     repeat,
   });
