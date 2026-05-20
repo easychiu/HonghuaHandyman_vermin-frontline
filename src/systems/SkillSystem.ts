@@ -171,8 +171,11 @@ export class SkillSystem {
 
   private getThrowImpactPosition(distance: number): { x: number; y: number } {
     const direction = this.player.facingDirection >= 0 ? 1 : -1;
+    const worldBounds = this.scene.physics.world.bounds;
+    const minX = worldBounds.x;
+    const maxX = worldBounds.right;
     return {
-      x: Phaser.Math.Clamp(this.player.x + direction * distance, 0, this.scene.scale.width),
+      x: Phaser.Math.Clamp(this.player.x + direction * distance, minX, maxX),
       y: this.player.y,
     };
   }
