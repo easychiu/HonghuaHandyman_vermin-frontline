@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import {
+  getHonghuaIdleAnimationKey,
   getHonghuaThrowAnimationKey,
   getHonghuaWalkAnimationKey,
-  HONGHUA_IDLE_FRAMES,
+  HONGHUA_INITIAL_FRAME,
   HONGHUA_TEXTURE_KEY,
 } from '../animations/honghuaAnimations';
 import { GAME_BALANCE } from '../config/gameBalance';
@@ -37,7 +38,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private lastFacing: 'left' | 'right' = 'right';
   
   constructor(scene: Phaser.Scene, x: number, y: number, inputController: GameInputController) {
-    super(scene, x, y, HONGHUA_TEXTURE_KEY, HONGHUA_IDLE_FRAMES.right);
+    super(scene, x, y, HONGHUA_TEXTURE_KEY, HONGHUA_INITIAL_FRAME);
     this.inputController = inputController;
     
     this.maxHp = GAME_BALANCE.player.maxHp;
@@ -47,6 +48,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
     this.setScale(2);
     this.setCollideWorldBounds(true);
+    this.setFlipX(false);
 
     this.healthBarGraphics = scene.add.graphics().setDepth(50);
   }
@@ -129,10 +131,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.setVelocityX(-this.speed);
       this.facingDirection = -1;
       this.lastFacing = 'left';
+      this.setFlipX(true);
     } else if (moveAxisX > 0.1) {
       this.setVelocityX(this.speed);
       this.facingDirection = 1;
       this.lastFacing = 'right';
+      this.setFlipX(false);
     } else {
       this.setVelocityX(0);
     }
@@ -219,11 +223,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     if (Math.abs(this.body.velocity.x) > 1) {
-      this.play(getHonghuaWalkAnimationKey(this.lastFacing), true);
+      this.play(getHonghuaWalkAnimationKey(), true);
       return;
     }
 
-    this.anims.stop();
-    this.setFrame(HONGHUA_IDLE_FRAMES[this.lastFacing]);
+    this.play(getHonghuaIdleAnimationKey(), true);
   }
 }
