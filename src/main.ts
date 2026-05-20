@@ -26,6 +26,9 @@ const config: Phaser.Types.Core.GameConfig = {
   backgroundColor: '#000000',
   input: {
     activePointers: 5,
+    keyboard: true,
+    mouse: true,
+    touch: true,
   },
   physics: {
     default: 'arcade',
