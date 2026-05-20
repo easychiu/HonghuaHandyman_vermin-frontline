@@ -32,8 +32,11 @@ export class ReadyScene extends Phaser.Scene {
       )
       .setOrigin(0.5);
 
-    this.input.once('pointerdown', () => {
+    const startGame = () => {
       this.scene.start(SCENE_KEYS.mainGame);
-    });
+    };
+
+    this.input.once('pointerdown', startGame);
+    this.input.keyboard?.once('keydown', startGame);
   }
 }
