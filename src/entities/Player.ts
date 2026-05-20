@@ -10,6 +10,8 @@ import { GAME_BALANCE } from '../config/gameBalance';
 import { GameInputController } from '../input/GameInputController';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
+  private static readonly IDLE_FALLBACK_TIMEOUT_MS = 2000;
+
   private readonly inputController: GameInputController;
   
   private speed = 250; 
@@ -35,6 +37,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   // --- 血條 Graphics ---
   private healthBarGraphics!: Phaser.GameObjects.Graphics;
   private animationLockUntil = 0;
+  private lastInteractionAt = 0;
   private lastFacing: 'left' | 'right' = 'right';
   
   constructor(scene: Phaser.Scene, x: number, y: number, inputController: GameInputController) {
@@ -49,6 +52,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setScale(2);
     this.setCollideWorldBounds(true);
     this.setFlipX(false);
+    this.lastInteractionAt = scene.time.now;
 
     this.healthBarGraphics = scene.add.graphics().setDepth(50);
   }
@@ -127,6 +131,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     // 處理左右移動與更新面向
     const moveAxisX = this.inputController.getMoveAxisX();
+    const hasInteractionThisFrame =
+      Math.abs(moveAxisX) > 0.1 ||
+      this.inputController.isClimbUpHeld() ||
+      this.inputController.isJumpJustPressed() ||
+      this.inputController.isAttackJustPressed() ||
+      this.inputController.isTrapJustPressed() ||
+      this.inputController.isSkillJustPressed(1) ||
+      this.inputController.isSkillJustPressed(2) ||
+      this.inputController.isSkillJustPressed(3) ||
+      this.inputController.isSkillJustPressed(4) ||
+      this.inputController.isSkillJustPressed(5);
+    if (hasInteractionThisFrame) {
+      this.lastInteractionAt = this.scene.time.now;
+    }
     if (moveAxisX < -0.1) {
       this.setVelocityX(-this.speed);
       this.facingDirection = -1;
@@ -215,6 +233,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   private updateAnimationState(): void {
     if (!this.active || !this.body) {
+      return;
+    }
+
+    if (this.scene.time.now - this.lastInteractionAt >= Player.IDLE_FALLBACK_TIMEOUT_MS) {
+      this.animationLockUntil = 0;
+      this.play(getHonghuaIdleAnimationKey(), true);
       return;
     }
 
