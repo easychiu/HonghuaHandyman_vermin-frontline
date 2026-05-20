@@ -10,7 +10,7 @@ import { GAME_BALANCE } from '../config/gameBalance';
 import { GameInputController } from '../input/GameInputController';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
-  private static readonly IDLE_FALLBACK_IDLE_MS = 2000;
+  private static readonly IDLE_FALLBACK_TIMEOUT_MS = 2000;
 
   private readonly inputController: GameInputController;
   
@@ -237,7 +237,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    if (this.scene.time.now - this.lastInteractionAt >= Player.IDLE_FALLBACK_IDLE_MS) {
+    if (this.scene.time.now - this.lastInteractionAt >= Player.IDLE_FALLBACK_TIMEOUT_MS) {
       this.animationLockUntil = 0;
       this.play(getHonghuaIdleAnimationKey(), true);
       return;
