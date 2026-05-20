@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 
 // spritesheet 規格：
-// 單一 frame 尺寸：64 × 72
+// 單一 frame 尺寸：62 × 88
 // 每個動作 6 個 frame（含攀爬）
-export const FRAME_WIDTH = 64;
-export const FRAME_HEIGHT = 72;
+export const FRAME_WIDTH = 62;
+export const FRAME_HEIGHT = 88;
 
 const FRAME_RANGES = {
   walkRight: { start: 0, end: 5 },
