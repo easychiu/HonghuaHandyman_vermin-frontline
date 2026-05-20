@@ -10,6 +10,11 @@ export class ReadyScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.cameras.main.setBackgroundColor('#1d3557');
+    const startZone = this.add
+      .zone(width / 2, height / 2, width, height)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
     this.add
       .text(width / 2, height / 2 - 40, 'Yorozuya Ready', {
         color: '#f1faee',
@@ -38,18 +43,17 @@ export class ReadyScene extends Phaser.Scene {
         return;
       }
       started = true;
+      startZone.disableInteractive();
       this.input.keyboard?.off('keydown', onKeyboardStart);
       this.scene.start(SCENE_KEYS.mainGame);
     };
-    const onKeyboardStart = (event: KeyboardEvent) => {
-      if (event.code === 'Space' || event.code === 'Enter') {
-        startGame();
-      }
-    };
+    const onKeyboardStart = () => startGame();
+    const onPointerStart = () => startGame();
 
-    this.input.once('pointerdown', startGame);
+    startZone.once('pointerdown', onPointerStart);
     this.input.keyboard?.on('keydown', onKeyboardStart);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      startZone.off('pointerdown', onPointerStart);
       this.input.keyboard?.off('keydown', onKeyboardStart);
     });
   }
