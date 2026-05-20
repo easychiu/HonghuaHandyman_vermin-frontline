@@ -47,13 +47,28 @@ export class ReadyScene extends Phaser.Scene {
       this.input.keyboard?.off('keydown', onKeyboardStart);
       this.scene.start(SCENE_KEYS.mainGame);
     };
-    const onKeyboardStart = () => startGame();
+    const onKeyboardStart = (event: KeyboardEvent) => {
+      const startKeys = new Set([
+        'Space',
+        'Enter',
+        'KeyW',
+        'KeyA',
+        'KeyS',
+        'KeyD',
+        'ArrowUp',
+        'ArrowDown',
+        'ArrowLeft',
+        'ArrowRight',
+      ]);
+      if (startKeys.has(event.code)) {
+        startGame();
+      }
+    };
     const onPointerStart = () => startGame();
 
     startZone.once('pointerdown', onPointerStart);
     this.input.keyboard?.on('keydown', onKeyboardStart);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      startZone.off('pointerdown', onPointerStart);
       this.input.keyboard?.off('keydown', onKeyboardStart);
     });
   }
