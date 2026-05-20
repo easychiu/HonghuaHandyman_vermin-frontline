@@ -53,7 +53,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.setFlipX(false);
     this.lastInteractionAt = scene.time.now;
-    this.play(getHonghuaIdleAnimationKey(), true);
 
     this.healthBarGraphics = scene.add.graphics().setDepth(50);
   }

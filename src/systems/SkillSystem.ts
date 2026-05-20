@@ -173,7 +173,7 @@ export class SkillSystem {
     const direction = this.player.facingDirection >= 0 ? 1 : -1;
     return {
       x: Phaser.Math.Clamp(this.player.x + direction * distance, 0, this.scene.scale.width),
-      y: Phaser.Math.Clamp(this.player.y, 0, this.scene.scale.height),
+      y: this.player.y,
     };
   }
 }
