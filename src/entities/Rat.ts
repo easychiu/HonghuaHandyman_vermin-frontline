@@ -41,7 +41,6 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.moveSpeed = profile.moveSpeed;
     this.panicThreshold = profile.panicThreshold;
     this.setTint(profile.tint);
-    this.setScale(profile.scale);
 
     this.currentDirection = velocityX >= 0 ? 1 : -1;
     this.setVelocityX(this.moveSpeed * this.currentDirection);
@@ -60,8 +59,11 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.externalSpeedMultiplier = 1.0;
     this.stopBurnParticles();
 
+    this.setDisplaySize(24 * profile.scale, 16 * profile.scale);
     if (this.body) {
-      (this.body as Phaser.Physics.Arcade.Body).setAllowGravity(true);
+      const body = this.body as Phaser.Physics.Arcade.Body;
+      body.setAllowGravity(true);
+      body.setSize(this.width, this.height);
     }
   }
 

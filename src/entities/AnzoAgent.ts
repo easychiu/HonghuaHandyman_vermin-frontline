@@ -38,7 +38,7 @@ export class AnzoAgent {
     // 1. 警車從右側開入
     // 警車起點為螢幕右側外，停在 width - 80 處
     const carY = this.yLevel - 15; // 警車稍微往上一點貼齊地面
-    this.policeCarRight = this.scene.physics.add.sprite(width + 120, carY, 'police_car');
+    this.policeCarRight = this.scene.physics.add.sprite(width + 120, carY, 'police_car').setDisplaySize(80, 45);
     this.policeCarRight.setDepth(15);
     if (this.policeCarRight.body) {
       (this.policeCarRight.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
@@ -89,7 +89,7 @@ export class AnzoAgent {
   private spawnAgent(): void {
     const width = this.scene.scale.width;
     // 特工從警車位置下車，往左跑
-    this.agentSprite = this.scene.physics.add.sprite(width - 100, this.yLevel, 'anzo_agent');
+    this.agentSprite = this.scene.physics.add.sprite(width - 100, this.yLevel, 'anzo_agent').setDisplaySize(26, 40);
     this.agentSprite.setDepth(20);
     this.agentSprite.setFlipX(true); // 面向左邊
     if (this.agentSprite.body) {
@@ -198,7 +198,7 @@ export class AnzoAgent {
   private pickupAgentAndLeave(): void {
     const carY = this.yLevel - 15;
     // 警車從左側外開入到 x = 80 處
-    this.policeCarLeft = this.scene.physics.add.sprite(-120, carY, 'police_car');
+    this.policeCarLeft = this.scene.physics.add.sprite(-120, carY, 'police_car').setDisplaySize(80, 45);
     this.policeCarLeft.setDepth(15);
     this.policeCarLeft.setFlipX(true); // 面向右邊開進來
     if (this.policeCarLeft.body) {
@@ -308,55 +308,6 @@ export class AnzoAgent {
   }
 
   private ensureTextures(): void {
-    // 1. 警車材質
-    if (!this.scene.textures.exists('police_car')) {
-      const g = this.scene.add.graphics();
-      // 車身 (藍白相間)
-      g.fillStyle(0x1d3557);
-      g.fillRect(0, 10, 80, 25);
-      g.fillStyle(0xffffff);
-      g.fillRect(20, 10, 40, 25);
-      // 車頂
-      g.fillStyle(0x1d3557);
-      g.fillRect(25, 0, 30, 10);
-      // 車輪
-      g.fillStyle(0x111111);
-      g.fillCircle(18, 35, 8);
-      g.fillCircle(62, 35, 8);
-      // 警車紅藍警燈
-      g.fillStyle(0xff3333);
-      g.fillRect(35, -3, 5, 3);
-      g.fillStyle(0x3333ff);
-      g.fillRect(40, -3, 5, 3);
-
-      g.generateTexture('police_car', 80, 45);
-      g.destroy();
-    }
-
-    // 2. 特工材質 (帶黃色防護服的特工)
-    if (!this.scene.textures.exists('anzo_agent')) {
-      const g = this.scene.add.graphics();
-      // 身體 (黑色衣服 + 黃色背心)
-      g.fillStyle(0x222222);
-      g.fillRect(6, 12, 16, 28);
-      g.fillStyle(0xffd166);
-      g.fillRect(6, 14, 16, 12);
-      // 頭部
-      g.fillStyle(0xffd166);
-      g.fillRect(8, 2, 12, 10);
-      // 面罩
-      g.fillStyle(0x111111);
-      g.fillRect(10, 4, 8, 4);
-      // 火焰槍 (灰色)
-      g.fillStyle(0x777777);
-      g.fillRect(0, 20, 14, 5); // 槍管
-      g.fillStyle(0x444444);
-      g.fillRect(16, 16, 8, 14); // 氣瓶
-
-      g.generateTexture('anzo_agent', 26, 40);
-      g.destroy();
-    }
-
     // 3. 火焰粒子材質
     if (!this.scene.textures.exists('flame_particle')) {
       const g = this.scene.add.graphics();

@@ -46,11 +46,13 @@ export class MainGameScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#8d99ae');
     this.createBackground(width, height);
-    this.createCommonTextures(height);
     ensureHonghuaAnimations(this);
     this.platforms = this.createPlatforms(width, height);
 
-    const pipe = this.physics.add.staticImage(480, GAME_BALANCE.world.surfaceY, 'pipe_texture').setOrigin(0.5, 0);
+    const pipeHeight = height - GAME_BALANCE.world.surfaceY;
+    const pipe = this.physics.add.staticImage(480, GAME_BALANCE.world.surfaceY, 'pipe_texture')
+      .setOrigin(0.5, 0)
+      .setDisplaySize(40, pipeHeight);
     pipe.refreshBody();
 
     this.greenRatPool = this.physics.add.group({ classType: Rat, maxSize: 100, runChildUpdate: true });
@@ -392,200 +394,8 @@ export class MainGameScene extends Phaser.Scene {
     return platforms;
   }
 
-  private createCommonTextures(height: number): void {
-    if (!this.textures.exists('ground_texture')) {
-      const w = 100;
-      const h = 20;
-      const g = this.add.graphics();
-      // Dark grey asphalt
-      g.fillStyle(0x2b2d42);
-      g.fillRect(0, 0, w, h);
-      // Top curb light grey border
-      g.fillStyle(0x8d99ae);
-      g.fillRect(0, 0, w, 4);
-      // Sidewalk vertical cracks/lines
-      g.fillStyle(0x1d3557, 0.4);
-      for (let x = 0; x < w; x += 25) {
-        g.fillRect(x, 4, 2, h - 4);
-      }
-      g.generateTexture('ground_texture', w, h);
-      g.destroy();
-    }
-
-    if (!this.textures.exists('underground_texture')) {
-      const w = 100;
-      const h = 40;
-      const g = this.add.graphics();
-      // Sewer dirty bricks (brownish/grey)
-      g.fillStyle(0x3d3a4f); // Brick base
-      g.fillRect(0, 0, w, h);
-      // Brick borders
-      g.fillStyle(0x1a1a24, 0.8);
-      g.fillRect(0, 0, w, 3); // top border
-      g.fillRect(0, h - 3, w, 3); // bottom border
-      // Draw horizontal mortar lines
-      g.fillRect(0, 12, w, 2);
-      g.fillRect(0, 26, w, 2);
-      // Draw vertical mortar lines
-      for (let y = 0; y < h; y += 14) {
-        const offset = y % 28 === 0 ? 0 : 25;
-        for (let x = offset; x < w; x += 50) {
-          g.fillRect(x, y, 2, 14);
-        }
-      }
-      g.generateTexture('underground_texture', w, h);
-      g.destroy();
-    }
-
-    if (!this.textures.exists('pipe_texture')) {
-      const w = 40;
-      const h = height - GAME_BALANCE.world.surfaceY;
-      const g = this.add.graphics();
-      // Pipe metallic gradient (simulated with lines)
-      for (let i = 0; i < w; i++) {
-        // Center of the pipe is bright, sides are dark
-        const ratio = i / w;
-        const colorVal = Math.floor(Math.sin(ratio * Math.PI) * 90) + 40; // 40 to 130
-        const color = Phaser.Display.Color.GetColor(colorVal, colorVal, colorVal + 10);
-        g.fillStyle(color);
-        g.fillRect(i, 0, 1, h);
-      }
-      // Add horizontal joint lines/ridges every 40px
-      g.fillStyle(0x222222, 0.6);
-      for (let y = 0; y < h; y += 40) {
-        g.fillRect(0, y, w, 4);
-        g.fillRect(0, y + 4, w, 2); // Highlight/shadow
-      }
-      g.generateTexture('pipe_texture', w, h);
-      g.destroy();
-    }
-
-    if (!this.textures.exists('rat')) {
-      const w = 24;
-      const h = 16;
-      const g = this.add.graphics();
-      // Rat body: oval/ellipse
-      g.fillStyle(0xffffff);
-      g.fillEllipse(w / 2 - 2, h / 2 + 1, 14, 10);
-      // Rat head: circle/triangle pointing right
-      g.fillTriangle(w / 2, h / 2 - 3, w / 2, h / 2 + 5, w - 2, h / 2 + 1);
-      // Rat ears: small circle
-      g.fillCircle(w / 2 - 2, h / 2 - 3, 3);
-      // Rat eye: tiny black circle
-      g.fillStyle(0x000000);
-      g.fillCircle(w / 2 + 4, h / 2 - 1, 1.2);
-      // Rat tail: light grey line dragging behind (on the left)
-      g.lineStyle(1.5, 0xcccccc);
-      g.beginPath();
-      g.moveTo(4, h / 2 + 3);
-      g.lineTo(1, h / 2 + 6);
-      g.lineTo(0, h / 2 + 4);
-      g.strokePath();
-
-      g.generateTexture('rat', w, h);
-      g.destroy();
-    }
-
-    if (!this.textures.exists('betel_nut')) {
-      const g = this.add.graphics();
-      g.fillStyle(0xffffff);
-      g.fillEllipse(4, 4, 4, 3);
-      g.generateTexture('betel_nut', 8, 8);
-      g.destroy();
-    }
-
-    if (!this.textures.exists('trap_texture')) {
-      const w = 24;
-      const h = 10;
-      const g = this.add.graphics();
-      // Steel base plate
-      g.fillStyle(0x4a4e69);
-      g.fillRect(2, 6, w - 4, 4);
-      // Spikes/Teeth (jaw shapes)
-      g.fillStyle(0xc0c0c0);
-      g.fillTriangle(4, 6, 6, 0, 8, 6);
-      g.fillTriangle(10, 6, 12, 0, 14, 6);
-      g.fillTriangle(16, 6, 18, 0, 20, 6);
-
-      g.generateTexture('trap_texture', w, h);
-      g.destroy();
-    }
-
-    if (!this.textures.exists('trap_cheese')) {
-      const w = 20;
-      const h = 14;
-      const g = this.add.graphics();
-      // Cheese body: yellow triangle
-      g.fillStyle(0xffd166);
-      g.fillTriangle(2, h - 2, w / 2, 2, w - 2, h - 2);
-      // Cheese holes: dark orange/yellow circles
-      g.fillStyle(0xf77f00);
-      g.fillCircle(w / 2, h - 5, 2);
-      g.fillCircle(w / 2 - 3, h - 3, 1.5);
-      g.fillCircle(w / 2 + 3, h - 3, 1.2);
-      g.generateTexture('trap_cheese', w, h);
-      g.destroy();
-    }
-
-    if (!this.textures.exists('trap_barricade')) {
-      const w = 32;
-      const h = 28;
-      const g = this.add.graphics();
-      // Barricade base/planks: brown
-      g.fillStyle(0x8b5a2b);
-      g.fillRect(4, h - 6, w - 8, 6); // Bottom beam
-      g.fillRect(8, 4, 6, h - 10);   // Left post
-      g.fillRect(w - 14, 4, 6, h - 10); // Right post
-      // Diagonal wooden cross (X shape)
-      g.fillStyle(0xa0522d);
-      g.lineStyle(4, 0xa0522d);
-      g.lineBetween(6, 6, w - 6, h - 6);
-      g.lineBetween(w - 6, 6, 6, h - 6);
-      // Metal bolts (silver dots on joints)
-      g.fillStyle(0xc0c0c0);
-      g.fillCircle(11, 7, 2);
-      g.fillCircle(w - 11, 7, 2);
-      g.generateTexture('trap_barricade', w, h);
-      g.destroy();
-    }
-
-    if (!this.textures.exists('human_texture')) {
-      const w = 24;
-      const h = 40;
-      const g = this.add.graphics();
-      // Head
-      g.fillStyle(0xffffff);
-      g.fillCircle(w / 2, 8, 6);
-      // Torso (Shirt)
-      g.fillStyle(0xdddddd);
-      g.fillRect(w / 2 - 8, 14, 16, 14);
-      // Legs (Pants)
-      g.fillStyle(0xaaaaaa);
-      g.fillRect(w / 2 - 6, 28, 12, 12);
-
-      g.generateTexture('human_texture', w, h);
-      g.destroy();
-    }
-
-    if (!this.textures.exists('portal_texture')) {
-      const size = 60;
-      const g = this.add.graphics();
-      // Outer purple glow
-      g.fillStyle(0x7b2cbf, 0.4);
-      g.fillCircle(size/2, size/2, size/2);
-      // Inner magenta swirl
-      g.fillStyle(0x9d4edd, 0.7);
-      g.fillCircle(size/2, size/2, size/2 - 6);
-      // Center dark core
-      g.fillStyle(0x240046, 0.95);
-      g.fillCircle(size/2, size/2, size/2 - 14);
-      // Core portal star
-      g.fillStyle(0xe0aaff, 1);
-      g.fillCircle(size/2, size/2, 4);
-
-      g.generateTexture('portal_texture', size, size);
-      g.destroy();
-    }
+  private createCommonTextures(): void {
+    // Textures are pre-loaded in BootScene.ts
   }
 
   private spawnInitialHumans(): void {
@@ -597,7 +407,7 @@ export class MainGameScene extends Phaser.Scene {
   }
 
   private createPortal(portalX: number, portalY: number): void {
-    const portal = this.add.image(portalX, portalY, 'portal_texture');
+    const portal = this.add.image(portalX, portalY, 'portal_texture').setDisplaySize(60, 60);
     this.tweens.add({
       targets: portal,
       angle: 360,
@@ -607,8 +417,8 @@ export class MainGameScene extends Phaser.Scene {
     this.tweens.add({
       targets: portal,
       alpha: 0.5,
-      scaleX: 1.15,
-      scaleY: 1.15,
+      scaleX: 0.25,
+      scaleY: 0.15,
       duration: 800,
       yoyo: true,
       repeat: -1,

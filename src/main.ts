@@ -21,6 +21,10 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: mountElement.id,
   width: GAME_BALANCE.world.width,
   height: GAME_BALANCE.world.height,
+  render: {
+    pixelArt: true,
+    antialias: false,
+  },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

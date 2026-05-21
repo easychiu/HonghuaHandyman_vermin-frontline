@@ -10,14 +10,20 @@ export class Human extends Phaser.Physics.Arcade.Sprite {
   }
 
   spawn(x: number, y: number): void {
+    this.setDisplaySize(24, 40);
     this.body?.reset(x, y);
     this.setActive(true);
     this.setVisible(true);
     
+    if (this.body) {
+      const body = this.body as Phaser.Physics.Arcade.Body;
+      body.setSize(this.width, this.height);
+    }
+
     // 重置狀態
     this.isPanicking = false;
     this.moveSpeed = 50;
-    this.setTint(0x457b9d); // 預設為寧靜的藍色
+    this.clearTint(); // Use original pixel art colors instead of flat blue
     
     // 隨機決定一開始的散步方向
     this.currentDirection = Phaser.Math.Between(0, 1) === 0 ? 1 : -1;

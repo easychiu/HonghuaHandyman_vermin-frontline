@@ -13,6 +13,21 @@ export class BootScene extends Phaser.Scene {
       frameWidth: FRAME_WIDTH,
       frameHeight: FRAME_HEIGHT,
     });
+
+    // Preload custom pixel art sprites to replace procedural shapes
+    this.load.image('rat', 'assets/rat.png');
+    this.load.image('betel_nut', 'assets/betel_nut.png');
+    this.load.image('trap_texture', 'assets/trap_bear.png');
+    this.load.image('trap_cheese', 'assets/trap_cheese.png');
+    this.load.image('trap_barricade', 'assets/trap_barricade.png');
+    this.load.image('human_texture', 'assets/human.png');
+    this.load.image('portal_texture', 'assets/portal.png');
+    this.load.image('anzo_agent', 'assets/anzo_agent.png');
+    this.load.image('police_car', 'assets/police_car.png');
+    this.load.image('ground_texture', 'assets/ground.png');
+    this.load.image('underground_texture', 'assets/underground.png');
+    this.load.image('pipe_texture', 'assets/pipe.png');
+    this.load.image('boss_texture', 'assets/boss.png');
   }
 
   create(): void {

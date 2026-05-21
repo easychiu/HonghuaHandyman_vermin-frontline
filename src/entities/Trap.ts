@@ -33,6 +33,14 @@ export class Trap extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.setTexture(texture);
+    if (type === 'bait_cheese') {
+      this.setDisplaySize(20, 14);
+    } else if (type === 'barricade') {
+      this.setDisplaySize(32, 28);
+    } else {
+      this.setDisplaySize(24, 10);
+    }
+
     this.body?.reset(x, y);
     this.setActive(true);
     this.setVisible(true);
