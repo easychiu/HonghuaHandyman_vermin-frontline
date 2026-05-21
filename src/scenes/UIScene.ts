@@ -11,6 +11,7 @@ export class UIScene extends Phaser.Scene {
   private topLeftText?: Phaser.GameObjects.Text;
   private bossText?: Phaser.GameObjects.Text;
   private skillText?: Phaser.GameObjects.Text;
+  private selectedTrapText?: Phaser.GameObjects.Text;
   private touchToggleText?: Phaser.GameObjects.Text;
 
   private touchControlsVisible = false;
@@ -71,7 +72,15 @@ export class UIScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setDepth(1000).setOrigin(0.5, 0);
 
-    this.skillText = this.add.text(16, this.scale.height - 100, '', {
+    this.selectedTrapText = this.add.text(16, this.scale.height - 135, '', {
+      color: '#ffd166',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '16px',
+      fontStyle: 'bold',
+      shadow: { color: '#000000', fill: true, offsetX: 1, offsetY: 1, blur: 2 }
+    }).setDepth(1000);
+
+    this.skillText = this.add.text(16, this.scale.height - 110, '', {
       color: '#ffffff',
       fontFamily: 'Arial, sans-serif',
       fontSize: '15px',
@@ -140,14 +149,28 @@ export class UIScene extends Phaser.Scene {
 
     // 技能欄顯示
     const s = hud.skillUses;
+    const upgrades = this.registry.get('upgrades') as { baoYeShield?: number } | undefined;
+    const level = upgrades?.baoYeShield ?? 1;
+    const shieldValues = [3, 5, 8];
+    const shieldHits = shieldValues[Math.min(Math.max(1, level), shieldValues.length) - 1];
+
     this.skillText?.setText(
       `[1] A.青仔檳榔  ${s.qingZai}x\n` +
-      `[2] B.雙子檳榔  ${s.shuangZi}x\n` +
+      `[2] B.雙生檳榔  ${s.shuangZi}x\n` +
       `[3] C.紅灰檳榔  ${s.hongHui}x  🔥燃燒\n` +
-      `[4] D.白灰檳榔  ${s.baiHui}x  ❄減速\n` +
-      `[5] E.包葉檳榔  ${s.baoYe}x  🛡護盾(3次)\n` +
+      `[4] D.石灰檳榔  ${(s as any).shiHui ?? 0}x  ❄減速\n` +
+      `[5] E.包葉檳榔  ${s.baoYe}x  🛡護盾(${shieldHits}次)\n` +
       `[6/R] 庵左特工  ${(s as any).anzo ?? 0}x  🚒召喚`,
     );
+
+    const currentTrapType = this.registry.get('currentTrapType') ?? 'bear_trap';
+    const trapLabels: Record<string, string> = {
+      bear_trap: '捕鼠夾 ⚙ (Q鍵/切換)',
+      bait_cheese: '起司起司 🧀 (Q鍵/切換)',
+      barricade: '防禦路障 🚧 (Q鍵/切換)'
+    };
+    const trapLabel = trapLabels[currentTrapType] || '未知';
+    this.selectedTrapText?.setText(`[E] 放置陷阱: ${trapLabel}`);
 
     this.refreshTouchToggleText(this.debugPointerSpawnEnabled);
 
@@ -197,6 +220,16 @@ export class UIScene extends Phaser.Scene {
       trapBtn.setFillStyle(0xbe95ff, 0.9);
       this.game.events.emit('controls:trap', true);
       this.time.delayedCall(UIScene.BUTTON_FEEDBACK_DURATION_MS, () => trapBtn.setFillStyle(0x9d4edd, 0.8));
+    });
+
+    const cycleTrapBtn = this.createTouchButton(this.scale.width - 240, h - 190, 24, '切換', 0x7b2cbf);
+    cycleTrapBtn.on('pointerdown', () => {
+      if (!this.touchControlsVisible) {
+        return;
+      }
+      cycleTrapBtn.setScale(1.15);
+      this.game.events.emit('controls:cycle-trap');
+      this.time.delayedCall(UIScene.BUTTON_FEEDBACK_DURATION_MS, () => cycleTrapBtn.setScale(1));
     });
 
     const skillButtons: Array<{ key: 1 | 2 | 3 | 4 | 5 | 6; x: number; y: number; color: number }> = [
@@ -336,18 +369,44 @@ export class UIScene extends Phaser.Scene {
     
     let evaluation = 'F';
     let comment = '紅花的黑歷史...';
+    let rewardMult = 0.4;
     if (finalScore >= 80) {
       evaluation = 'S';
       comment = '萬事屋的榮耀！完美控制鼠患！';
+      rewardMult = 1.2;
     } else if (finalScore >= 60) {
       evaluation = 'A';
       comment = '備受國王信賴！工作完成出色！';
+      rewardMult = 1.0;
     } else if (finalScore >= 40) {
       evaluation = 'B';
       comment = '合格的委託人。聲譽依然良好。';
+      rewardMult = 0.8;
     } else if (finalScore >= 20) {
       evaluation = 'C';
       comment = '差強人意，請繼續努力。';
+      rewardMult = 0.6;
+    }
+
+    // 結算與存檔系統
+    const selectedMission = this.registry.get('selectedMission');
+    let earnedGold = 0;
+    let earnedRep = 0;
+    if (selectedMission) {
+      earnedGold = Math.round(selectedMission.goldReward * rewardMult);
+      earnedRep = Math.round(selectedMission.repReward * rewardMult);
+      
+      const curGold = parseInt(localStorage.getItem('honghua_gold') ?? '200', 10);
+      const curRep = parseInt(localStorage.getItem('honghua_reputation') ?? '100', 10);
+      
+      const newGold = curGold + earnedGold;
+      const newRep = Math.max(0, curRep + earnedRep);
+      
+      localStorage.setItem('honghua_gold', newGold.toString());
+      localStorage.setItem('honghua_reputation', newRep.toString());
+      
+      this.registry.set('persistent_gold', newGold);
+      this.registry.set('persistent_reputation', newRep);
     }
 
     const panelY = height / 2;
@@ -364,12 +423,16 @@ export class UIScene extends Phaser.Scene {
       `人類受驚次數: ${hud.scaredHumans}\n` +
       `殘留老鼠總數: ${remainingRats}\n` +
       `最終聲望分數: ${hud.score}\n` +
-      `結算總評分: ${finalScore}`;
+      `結算總評分: ${finalScore}\n\n` +
+      (selectedMission 
+        ? `獲得金幣: 🪙 +${earnedGold} G (評價加成: ${Math.round(rewardMult * 100)}%)\n` +
+          `獲得聲望: 🏆 +${earnedRep}` 
+        : '');
 
-    this.add.text(width / 2 - 120, panelY - 60, statsText, {
+    this.add.text(width / 2 - 120, panelY - 70, statsText, {
       color: '#cbd5e1',
       fontFamily: 'Arial, sans-serif',
-      fontSize: '18px',
+      fontSize: '16px',
       lineSpacing: 8,
     }).setDepth(2005);
 
@@ -381,14 +444,14 @@ export class UIScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(2005);
 
-    this.add.text(width / 2, panelY + 70, `「 ${comment} 」`, {
+    this.add.text(width / 2, panelY + 75, `「 ${comment} 」`, {
       color: '#e2e8f0',
       fontFamily: 'Arial, sans-serif',
-      fontSize: '20px',
+      fontSize: '18px',
       fontStyle: 'italic',
     }).setOrigin(0.5).setDepth(2005);
 
-    this.add.text(width / 2, panelY + 150, '重新開始', {
+    this.add.text(width / 2, panelY + 150, '返回大廳 (Lobby)', {
       color: '#ffffff',
       fontFamily: 'Arial, sans-serif',
       fontSize: '22px',
@@ -428,7 +491,7 @@ export class UIScene extends Phaser.Scene {
       fontSize: '20px',
     }).setOrigin(0.5).setDepth(2005);
 
-    this.add.text(width / 2, panelY + 100, '重新挑戰', {
+    this.add.text(width / 2, panelY + 100, '返回大廳 (Lobby)', {
       color: '#ffffff',
       fontFamily: 'Arial, sans-serif',
       fontSize: '22px',
@@ -442,10 +505,18 @@ export class UIScene extends Phaser.Scene {
   }
 
   private restartGame(): void {
-    this.registry.destroy();
+    // Reset level-specific registry keys
+    this.registry.set('reputationScore', 0);
+    this.registry.set('ratKills', 0);
+    this.registry.set('scaredHumans', 0);
+    this.registry.set('levelTimeLeft', 0);
+    this.registry.set('bossActive', false);
+    this.registry.remove('gameStatus');
+    this.registry.remove('remainingRats');
+
     this.screenOverlayActive = false;
     this.scene.stop(SCENE_KEYS.ui);
     this.scene.stop(SCENE_KEYS.mainGame);
-    this.scene.start(SCENE_KEYS.ready);
+    this.scene.start(SCENE_KEYS.lobby);
   }
 }

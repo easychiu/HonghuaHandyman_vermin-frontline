@@ -237,7 +237,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.playLockedAnimation('honghua-climb', 260);
   }
 
-  public playThrowAnimation(type: 'qingZai' | 'shuangZi' | 'hongHui' | 'baiHui' | 'baoYe'): void {
+  public playThrowAnimation(type: 'qingZai' | 'shuangZi' | 'hongHui' | 'shiHui' | 'baoYe'): void {
     this.playLockedAnimation(getHonghuaThrowAnimationKey(type), 320);
   }
 

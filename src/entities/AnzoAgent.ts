@@ -17,6 +17,11 @@ export class AnzoAgent {
   private isFlameActive = false;
   private active = true;
 
+  private glowRight?: Phaser.GameObjects.Arc;
+  private glowLeft?: Phaser.GameObjects.Arc;
+  private sirenTimerRight?: Phaser.Time.TimerEvent;
+  private sirenTimerLeft?: Phaser.Time.TimerEvent;
+
   constructor(scene: Phaser.Scene, yLevel: number, getActiveRats: () => Rat[], onRatKilled: () => void) {
     this.scene = scene;
     this.yLevel = yLevel;
@@ -39,13 +44,27 @@ export class AnzoAgent {
       (this.policeCarRight.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     }
 
-    // 警車閃爍燈光效果
-    const sirenTimer = this.scene.time.addEvent({
+    this.glowRight = this.scene.add.circle(this.policeCarRight.x, this.policeCarRight.y - 25, 30, 0xff0000, 0.3)
+      .setDepth(14);
+
+    let colorIdx = 0;
+    const colors = [0xff0000, 0x0000ff];
+    this.sirenTimerRight = this.scene.time.addEvent({
       delay: 150,
       loop: true,
       callback: () => {
-        if (!this.policeCarRight?.active) return;
-        this.policeCarRight.setTint(this.policeCarRight.tintTopLeft === 0xffffff ? 0xff3333 : 0xffffff);
+        if (!this.policeCarRight?.active || !this.glowRight) return;
+        colorIdx = 1 - colorIdx;
+        const currentGlowColor = colors[colorIdx];
+        this.glowRight.setFillStyle(currentGlowColor, 0.45);
+        this.glowRight.setScale(1.2);
+        this.scene.tweens.add({
+          targets: this.glowRight,
+          scale: 0.8,
+          alpha: 0.15,
+          duration: 140,
+        });
+        this.policeCarRight.setTint(currentGlowColor === 0xff0000 ? 0xffaaaa : 0xaaaaff);
       }
     });
 
@@ -54,10 +73,13 @@ export class AnzoAgent {
       x: width - 80,
       duration: 1000,
       ease: 'Quad.easeOut',
+      onUpdate: () => {
+        if (this.policeCarRight && this.glowRight) {
+          this.glowRight.x = this.policeCarRight.x;
+          this.glowRight.y = this.policeCarRight.y - 25;
+        }
+      },
       onComplete: () => {
-        sirenTimer.remove();
-        this.policeCarRight?.clearTint();
-        
         // 2. 特工下車，向左奔跑
         this.spawnAgent();
       }
@@ -95,16 +117,15 @@ export class AnzoAgent {
       onUpdate: () => {
         if (!this.agentSprite || !this.flameZone) return;
         
+        // Shake camera slightly on each update during fire spraying
+        this.scene.cameras.main.shake(50, 0.0015, false);
+
         // 更新火焰判定區與粒子發射器的位置
         this.flameZone.x = this.agentSprite.x - 60;
         this.flameZone.y = this.agentSprite.y;
 
-        // 如果是舊版 Phaser 3 粒子發射器
         if (this.flameParticles) {
-          const emitter = (this.flameParticles as any).emitters ? (this.flameParticles as any).emitters.first : this.flameParticles;
-          if (emitter) {
-            emitter.setPosition(this.agentSprite.x - 25, this.agentSprite.y - 5);
-          }
+          this.flameParticles.setPosition(this.agentSprite.x - 25, this.agentSprite.y - 5);
         }
 
         // 火焰傷害判定
@@ -113,7 +134,8 @@ export class AnzoAgent {
       onComplete: () => {
         this.isFlameActive = false;
         if (this.flameParticles) {
-          (this.flameParticles as any).destroy ? (this.flameParticles as any).destroy() : (this.flameParticles as any).stop();
+          this.flameParticles.destroy();
+          this.flameParticles = undefined;
         }
         this.flameZone?.destroy();
 
@@ -126,11 +148,6 @@ export class AnzoAgent {
   private createFlameParticles(): void {
     if (!this.agentSprite) return;
 
-    // 建立粒子系統
-    // Phaser 3.60+ 使用 add.particles(key) 獲取 Emitter, 3.50- 使用 ParticleManager
-    const particles = this.scene.add.particles('flame_particle').setDepth(18);
-    
-    // 設定發射器參數
     const emitterConfig = {
       x: this.agentSprite.x - 25,
       y: this.agentSprite.y - 5,
@@ -143,13 +160,8 @@ export class AnzoAgent {
       frequency: 20
     };
 
-    // 相容不同版本的 Phaser 粒子建立 API
-    if ((particles as any).createEmitter) {
-      this.flameParticles = (particles as any).createEmitter(emitterConfig);
-    } else {
-      // Phaser 3.60 之後直接返回 emitter
-      this.flameParticles = particles as any;
-    }
+    // Use Phaser 3.60+ compatible direct particle configuration
+    this.flameParticles = this.scene.add.particles(0, 0, 'flame_particle', emitterConfig).setDepth(18);
   }
 
   private checkFlameDamage(): void {
@@ -193,12 +205,27 @@ export class AnzoAgent {
       (this.policeCarLeft.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     }
 
-    const sirenTimer = this.scene.time.addEvent({
+    this.glowLeft = this.scene.add.circle(this.policeCarLeft.x, this.policeCarLeft.y - 25, 30, 0x0000ff, 0.3)
+      .setDepth(14);
+
+    let colorIdx = 0;
+    const colors = [0xff0000, 0x0000ff];
+    this.sirenTimerLeft = this.scene.time.addEvent({
       delay: 150,
       loop: true,
       callback: () => {
-        if (!this.policeCarLeft?.active) return;
-        this.policeCarLeft.setTint(this.policeCarLeft.tintTopLeft === 0xffffff ? 0x3333ff : 0xffffff);
+        if (!this.policeCarLeft?.active || !this.glowLeft) return;
+        colorIdx = 1 - colorIdx;
+        const currentGlowColor = colors[colorIdx];
+        this.glowLeft.setFillStyle(currentGlowColor, 0.45);
+        this.glowLeft.setScale(1.2);
+        this.scene.tweens.add({
+          targets: this.glowLeft,
+          scale: 0.8,
+          alpha: 0.15,
+          duration: 140,
+        });
+        this.policeCarLeft.setTint(currentGlowColor === 0xff0000 ? 0xffaaaa : 0xaaaaff);
       }
     });
 
@@ -207,6 +234,12 @@ export class AnzoAgent {
       x: 80,
       duration: 800,
       ease: 'Quad.easeOut',
+      onUpdate: () => {
+        if (this.policeCarLeft && this.glowLeft) {
+          this.glowLeft.x = this.policeCarLeft.x;
+          this.glowLeft.y = this.policeCarLeft.y - 25;
+        }
+      },
       onComplete: () => {
         // 特工上車消失
         this.agentSprite?.destroy();
@@ -218,8 +251,16 @@ export class AnzoAgent {
           x: -200,
           duration: 1200,
           ease: 'Quad.easeIn',
+          onUpdate: () => {
+            if (this.policeCarLeft && this.glowLeft) {
+              this.glowLeft.x = this.policeCarLeft.x;
+              this.glowLeft.y = this.policeCarLeft.y - 25;
+            }
+          },
           onComplete: () => {
-            sirenTimer.remove();
+            this.sirenTimerLeft?.remove();
+            this.glowLeft?.destroy();
+            this.glowLeft = undefined;
             this.destroy();
           }
         });
@@ -231,7 +272,16 @@ export class AnzoAgent {
             x: this.scene.scale.width + 200,
             duration: 1200,
             ease: 'Quad.easeIn',
+            onUpdate: () => {
+              if (this.policeCarRight && this.glowRight) {
+                this.glowRight.x = this.policeCarRight.x;
+                this.glowRight.y = this.policeCarRight.y - 25;
+              }
+            },
             onComplete: () => {
+              this.sirenTimerRight?.remove();
+              this.glowRight?.destroy();
+              this.glowRight = undefined;
               this.policeCarRight?.destroy();
               this.policeCarRight = undefined;
             }
@@ -243,12 +293,17 @@ export class AnzoAgent {
 
   private destroy(): void {
     this.active = false;
+    this.sirenTimerRight?.remove();
+    this.sirenTimerLeft?.remove();
+    this.glowRight?.destroy();
+    this.glowLeft?.destroy();
     this.policeCarLeft?.destroy();
     this.policeCarRight?.destroy();
     this.agentSprite?.destroy();
     this.flameZone?.destroy();
     if (this.flameParticles) {
-      (this.flameParticles as any).destroy ? (this.flameParticles as any).destroy() : (this.flameParticles as any).stop();
+      this.flameParticles.destroy();
+      this.flameParticles = undefined;
     }
   }
 

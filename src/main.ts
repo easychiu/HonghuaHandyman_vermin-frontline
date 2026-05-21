@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { GAME_BALANCE } from './config/gameBalance';
 import { BootScene } from './scenes/BootScene';
+import { IntroScene } from './scenes/IntroScene';
+import { YorozuyaLobbyScene } from './scenes/YorozuyaLobbyScene';
 import { MainGameScene } from './scenes/MainGameScene';
 import { ReadyScene } from './scenes/ReadyScene';
 import { UIScene } from './scenes/UIScene';
@@ -37,7 +39,7 @@ const config: Phaser.Types.Core.GameConfig = {
       gravity: { x: 0, y: 800 },
     },
   },
-  scene: [BootScene, ReadyScene, MainGameScene, UIScene],
+  scene: [BootScene, IntroScene, YorozuyaLobbyScene, ReadyScene, MainGameScene, UIScene],
 };
 
 void new Phaser.Game(config);

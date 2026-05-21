@@ -1,5 +1,7 @@
 export const SCENE_KEYS = {
   boot: 'BootScene',
+  intro: 'IntroScene',
+  lobby: 'YorozuyaLobbyScene',
   ready: 'ReadyScene',
   mainGame: 'MainGameScene',
   ui: 'UIScene',

@@ -25,34 +25,48 @@ export class Human extends Phaser.Physics.Arcade.Sprite {
   }
 
   // --- 新增：驚嚇處理邏輯 ---
-  public panic(): void {
+  public panic(closestRatX?: number): void {
     if (this.isPanicking) return; // 如果已經在害怕了就不重複觸發
     
     this.isPanicking = true;
     this.moveSpeed = 200; // 嚇到拔腿狂奔
     this.setTint(0xf4a261); // 變成驚恐的橘黃色
     
-    // 嚇到時隨機往左或往右跑
-    this.currentDirection = Phaser.Math.Between(0, 1) === 0 ? 1 : -1;
+    // 嚇到時朝向遠離最近老鼠的方向跑
+    if (closestRatX !== undefined) {
+      this.currentDirection = this.x >= closestRatX ? 1 : -1;
+    } else {
+      this.currentDirection = Phaser.Math.Between(0, 1) === 0 ? 1 : -1;
+    }
     this.setVelocityX(this.moveSpeed * this.currentDirection);
     
     // 嚇到整個人跳起來
     this.setVelocityY(-200);
     
-    console.warn('人類受到驚嚇！國王聲望 -1');
+    console.warn('人類受到驚嚇！國王聲望 -8');
 
     const excl = this.scene.add.text(this.x, this.y - 30, '❗', {
       fontSize: '20px',
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(100);
 
+    const reputText = this.scene.add.text(this.x, this.y - 50, '聲望 -8', {
+      fontSize: '14px',
+      fontStyle: 'bold',
+      color: '#ff3333',
+      shadow: { color: '#000000', fill: true, offsetX: 1, offsetY: 1, blur: 2 }
+    }).setOrigin(0.5).setDepth(100);
+
     this.scene.tweens.add({
-      targets: excl,
-      y: this.y - 55,
+      targets: [excl, reputText],
+      y: '-=25',
       alpha: 0,
-      duration: 800,
+      duration: 1000,
       ease: 'Quad.easeOut',
-      onComplete: () => excl.destroy(),
+      onComplete: () => {
+        excl.destroy();
+        reputText.destroy();
+      },
     });
   }
 

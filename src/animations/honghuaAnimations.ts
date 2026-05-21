@@ -26,14 +26,14 @@ export const HONGHUA_ANIMATION_KEYS = {
   idle: 'honghua-idle',
 } as const;
 
-export type HonghuaThrowType = 'qingZai' | 'shuangZi' | 'hongHui' | 'baiHui' | 'baoYe';
+export type HonghuaThrowType = 'qingZai' | 'shuangZi' | 'hongHui' | 'shiHui' | 'baoYe';
 export const HONGHUA_INITIAL_FRAME = FRAME_RANGES.idle.start;
 
 const THROW_ANIMATION_KEYS: Record<HonghuaThrowType, string> = {
   qingZai: HONGHUA_ANIMATION_KEYS.throw1,
   shuangZi: HONGHUA_ANIMATION_KEYS.throw1,
   hongHui: HONGHUA_ANIMATION_KEYS.throw1,
-  baiHui: HONGHUA_ANIMATION_KEYS.throw1,
+  shiHui: HONGHUA_ANIMATION_KEYS.throw1,
   baoYe: HONGHUA_ANIMATION_KEYS.throw1,
 };
 

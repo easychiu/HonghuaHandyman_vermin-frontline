@@ -14,6 +14,7 @@ import { RatSpawnerSystem } from '../systems/RatSpawnerSystem';
 import { ReputationSystem } from '../systems/ReputationSystem';
 import { SkillSystem } from '../systems/SkillSystem';
 import { TrapSystem } from '../systems/TrapSystem';
+import { TrapBaitSystem } from '../systems/TrapBaitSystem';
 import { GameInputController } from '../input/GameInputController';
 
 export class MainGameScene extends Phaser.Scene {
@@ -116,7 +117,7 @@ export class MainGameScene extends Phaser.Scene {
       onRatKilled: () => this.reputationSystem.recordRatKill(GAME_BALANCE.reputation.ratKillReward),
     });
 
-    this.trapSystem = new TrapSystem(this.trapPool, this.player);
+    this.trapSystem = new TrapSystem(this, this.trapPool, this.player);
 
     this.skillSystem = new SkillSystem(
       this,
@@ -160,9 +161,12 @@ export class MainGameScene extends Phaser.Scene {
       this.bossController.trigger(() => this.getActiveRats());
     };
 
+    const selectedMission = this.registry.get('selectedMission');
+    const levelDuration = selectedMission ? selectedMission.duration : GAME_BALANCE.level.durationSeconds;
+
     this.levelTimerSystem = new LevelTimerSystem({
       scene: this,
-      durationSeconds: GAME_BALANCE.level.durationSeconds,
+      durationSeconds: levelDuration,
       onTick: (timeLeft) => {
         if (timeLeft <= GAME_BALANCE.level.bossTriggerTimeLeftSeconds) {
           triggerBossRush();
@@ -266,12 +270,16 @@ export class MainGameScene extends Phaser.Scene {
       this.trapSystem.placeTrap();
     }
 
+    if (this.inputController.isCycleTrapJustPressed()) {
+      this.trapSystem.cycleTrap();
+    }
+
     // 技能輸入
     const skillActions: Array<[1 | 2 | 3 | 4 | 5 | 6, () => boolean]> = [
       [1, () => this.skillSystem.useQingZai()],
       [2, () => this.skillSystem.useShuangZi()],
       [3, () => this.skillSystem.useHongHui()],
-      [4, () => this.skillSystem.useBaiHui()],
+      [4, () => this.skillSystem.useShiHui()],
       [5, () => this.skillSystem.useBaoYe()],
       [6, () => this.skillSystem.useAnzo()],
     ];
@@ -296,6 +304,9 @@ export class MainGameScene extends Phaser.Scene {
     }
 
     this.humanSightSystem.update();
+
+    // 更新起司誘餌吸引系統
+    TrapBaitSystem.update(this.getActiveRats(), this.trapPool.getChildren() as Trap[]);
   }
 
   private handleRatClimbPipe(
@@ -475,6 +486,14 @@ export class MainGameScene extends Phaser.Scene {
       g.destroy();
     }
 
+    if (!this.textures.exists('betel_nut')) {
+      const g = this.add.graphics();
+      g.fillStyle(0xffffff);
+      g.fillEllipse(4, 4, 4, 3);
+      g.generateTexture('betel_nut', 8, 8);
+      g.destroy();
+    }
+
     if (!this.textures.exists('trap_texture')) {
       const w = 24;
       const h = 10;
@@ -489,6 +508,44 @@ export class MainGameScene extends Phaser.Scene {
       g.fillTriangle(16, 6, 18, 0, 20, 6);
 
       g.generateTexture('trap_texture', w, h);
+      g.destroy();
+    }
+
+    if (!this.textures.exists('trap_cheese')) {
+      const w = 20;
+      const h = 14;
+      const g = this.add.graphics();
+      // Cheese body: yellow triangle
+      g.fillStyle(0xffd166);
+      g.fillTriangle(2, h - 2, w / 2, 2, w - 2, h - 2);
+      // Cheese holes: dark orange/yellow circles
+      g.fillStyle(0xf77f00);
+      g.fillCircle(w / 2, h - 5, 2);
+      g.fillCircle(w / 2 - 3, h - 3, 1.5);
+      g.fillCircle(w / 2 + 3, h - 3, 1.2);
+      g.generateTexture('trap_cheese', w, h);
+      g.destroy();
+    }
+
+    if (!this.textures.exists('trap_barricade')) {
+      const w = 32;
+      const h = 28;
+      const g = this.add.graphics();
+      // Barricade base/planks: brown
+      g.fillStyle(0x8b5a2b);
+      g.fillRect(4, h - 6, w - 8, 6); // Bottom beam
+      g.fillRect(8, 4, 6, h - 10);   // Left post
+      g.fillRect(w - 14, 4, 6, h - 10); // Right post
+      // Diagonal wooden cross (X shape)
+      g.fillStyle(0xa0522d);
+      g.lineStyle(4, 0xa0522d);
+      g.lineBetween(6, 6, w - 6, h - 6);
+      g.lineBetween(w - 6, 6, 6, h - 6);
+      // Metal bolts (silver dots on joints)
+      g.fillStyle(0xc0c0c0);
+      g.fillCircle(11, 7, 2);
+      g.fillCircle(w - 11, 7, 2);
+      g.generateTexture('trap_barricade', w, h);
       g.destroy();
     }
 

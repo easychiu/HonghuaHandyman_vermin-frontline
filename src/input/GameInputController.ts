@@ -24,6 +24,7 @@ export class GameInputController {
   private key5?: Phaser.Input.Keyboard.Key;
   private key6?: Phaser.Input.Keyboard.Key;
   private rKey?: Phaser.Input.Keyboard.Key;
+  private qKey?: Phaser.Input.Keyboard.Key;
 
   private moveAxisX = 0;
   private climbUpHeld = false;
@@ -31,6 +32,7 @@ export class GameInputController {
   private jumpJustPressed = false;
   private attackJustPressed = false;
   private trapJustPressed = false;
+  private cycleTrapJustPressed = false;
   private skillJustPressed: Record<SkillKey, boolean> = { 1: false, 2: false, 3: false, 4: false, 5: false, 6: false };
 
   private touchMoveAxisX = 0;
@@ -38,6 +40,7 @@ export class GameInputController {
   private touchClimbDownHeld = false;
   private touchJumpQueued = false;
   private touchTrapQueued = false;
+  private touchCycleTrapQueued = false;
   private touchSkillQueued = new Set<SkillKey>();
   private touchAttackHeld = false;
   private touchAttackQueued = false;
@@ -84,6 +87,7 @@ export class GameInputController {
       this.touchClimbDownHeld = false;
       this.touchJumpQueued = false;
       this.touchTrapQueued = false;
+      this.touchCycleTrapQueued = false;
       this.touchSkillQueued.clear();
       this.touchAttackHeld = false;
       this.touchAttackQueued = false;
@@ -117,6 +121,7 @@ export class GameInputController {
       this.key5 = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.FIVE);
       this.key6 = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SIX);
       this.rKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+      this.qKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
     }
 
     this.gameEvents.on('controls:move', this.onTouchMove);
@@ -125,6 +130,7 @@ export class GameInputController {
     this.gameEvents.on('controls:jump', this.onTouchJump);
     this.gameEvents.on('controls:attack-held', this.onTouchAttackHeld);
     this.gameEvents.on('controls:trap', this.onTouchTrap);
+    this.gameEvents.on('controls:cycle-trap', () => { this.touchCycleTrapQueued = true; });
     this.gameEvents.on('controls:skill', this.onTouchSkill);
     this.gameEvents.on('controls:touch-ui-enabled', this.onTouchControlsEnabled);
   }
@@ -141,12 +147,15 @@ export class GameInputController {
     const keyboardAttackJustPressed = this.isJustDown(this.spaceKey);
     const keyboardTrapJustPressed = this.isJustDown(this.eKey);
 
+    const keyboardCycleTrapJustPressed = this.isJustDown(this.qKey);
+
     this.moveAxisX = resolvedKeyboardMoveX !== 0 ? resolvedKeyboardMoveX : this.touchMoveAxisX;
     this.climbUpHeld = keyboardClimbUpHeld || this.touchClimbUpHeld;
     this.climbDownHeld = keyboardClimbDownHeld || this.touchClimbDownHeld;
     this.jumpJustPressed = keyboardJumpJustPressed || this.touchJumpQueued;
     this.attackJustPressed = keyboardAttackJustPressed || this.touchAttackQueued;
     this.trapJustPressed = keyboardTrapJustPressed || this.touchTrapQueued;
+    this.cycleTrapJustPressed = keyboardCycleTrapJustPressed || this.touchCycleTrapQueued;
 
     this.skillJustPressed = {
       1: this.isJustDown(this.key1) || this.touchSkillQueued.has(1),
@@ -172,6 +181,7 @@ export class GameInputController {
     this.touchJumpQueued = false;
     this.touchAttackQueued = false;
     this.touchTrapQueued = false;
+    this.touchCycleTrapQueued = false;
     this.touchSkillQueued.clear();
   }
 
@@ -199,6 +209,10 @@ export class GameInputController {
     return this.trapJustPressed;
   }
 
+  isCycleTrapJustPressed(): boolean {
+    return this.cycleTrapJustPressed;
+  }
+
   isSkillJustPressed(n: SkillKey): boolean {
     return this.skillJustPressed[n];
   }
@@ -210,6 +224,7 @@ export class GameInputController {
     this.gameEvents.off('controls:jump', this.onTouchJump);
     this.gameEvents.off('controls:attack-held', this.onTouchAttackHeld);
     this.gameEvents.off('controls:trap', this.onTouchTrap);
+    this.gameEvents.off('controls:cycle-trap');
     this.gameEvents.off('controls:skill', this.onTouchSkill);
     this.gameEvents.off('controls:touch-ui-enabled', this.onTouchControlsEnabled);
   }

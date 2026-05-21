@@ -19,9 +19,12 @@ export class RatSpawnerSystem {
   constructor(private readonly config: RatSpawnerSystemConfig) {}
 
   startAutoSpawn(): void {
+    const selectedMission = this.config.scene.registry.get('selectedMission') as { spawnRateMult?: number } | undefined;
+    const mult = selectedMission?.spawnRateMult ?? 1.0;
+
     // 綠鼠：從右側傳送門生成，往左跑
     this.autoSpawnTimerGreen = this.config.scene.time.addEvent({
-      delay: GAME_BALANCE.rat.spawnIntervalMs,
+      delay: GAME_BALANCE.rat.spawnIntervalMs / mult,
       callback: () => {
         this.spawn('green', this.config.portalX, this.config.portalY, Phaser.Math.Between(-160, -70));
       },
@@ -31,7 +34,7 @@ export class RatSpawnerSystem {
 
     // 藍鼠：從地下左側生成，往右跑
     this.autoSpawnTimerBlue = this.config.scene.time.addEvent({
-      delay: GAME_BALANCE.rat.blueSpawnIntervalMs,
+      delay: GAME_BALANCE.rat.blueSpawnIntervalMs / mult,
       callback: () => {
         this.spawn('blue', 40, this.config.portalY, Phaser.Math.Between(70, 160));
       },

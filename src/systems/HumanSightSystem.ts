@@ -21,13 +21,23 @@ export class HumanSightSystem {
         return;
       }
 
-      const spottedRat = activeRats.find((rat) => Phaser.Math.Distance.Between(human.x, human.y, rat.x, rat.y) < this.config.panicRadius);
-
-      if (!spottedRat) {
+      const closeRats = activeRats.filter((rat) => Phaser.Math.Distance.Between(human.x, human.y, rat.x, rat.y) < this.config.panicRadius);
+      if (closeRats.length === 0) {
         return;
       }
 
-      human.panic();
+      // Find closest rat
+      let closestRat = closeRats[0];
+      let minDist = Phaser.Math.Distance.Between(human.x, human.y, closestRat.x, closestRat.y);
+      for (let i = 1; i < closeRats.length; i++) {
+        const dist = Phaser.Math.Distance.Between(human.x, human.y, closeRats[i].x, closeRats[i].y);
+        if (dist < minDist) {
+          minDist = dist;
+          closestRat = closeRats[i];
+        }
+      }
+
+      human.panic(closestRat.x);
       this.config.onHumanSawRat();
     });
   }

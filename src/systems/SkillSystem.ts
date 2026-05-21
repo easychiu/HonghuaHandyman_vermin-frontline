@@ -4,7 +4,7 @@ import { Player } from '../entities/Player';
 import { Rat } from '../entities/Rat';
 import { AnzoAgent } from '../entities/AnzoAgent';
 
-export type SkillType = 'qingZai' | 'shuangZi' | 'hongHui' | 'baiHui' | 'baoYe' | 'anzo';
+export type SkillType = 'qingZai' | 'shuangZi' | 'hongHui' | 'shiHui' | 'baoYe' | 'anzo';
 
 interface SlowZone {
   x: number;
@@ -29,7 +29,7 @@ export class SkillSystem {
       qingZai:  GAME_BALANCE.skills.qingZai.uses,
       shuangZi: GAME_BALANCE.skills.shuangZi.uses,
       hongHui:  GAME_BALANCE.skills.hongHui.uses,
-      baiHui:   GAME_BALANCE.skills.baiHui.uses,
+      shiHui:   (GAME_BALANCE.skills as any).shiHui?.uses ?? 1,
       baoYe:    GAME_BALANCE.skills.baoYe.uses,
       anzo:     GAME_BALANCE.skills.anzo.uses,
     };
@@ -39,27 +39,86 @@ export class SkillSystem {
     return this.uses;
   }
 
+  private throwProjectile(
+    type: 'qingZai' | 'shuangZi' | 'hongHui' | 'shiHui',
+    throwDistance: number,
+    onImpact: (impactX: number, impactY: number) => void
+  ): void {
+    this.player.playThrowAnimation(type);
+    const impact = this.getThrowImpactPosition(throwDistance);
+
+    let tint = 0xffffff;
+    if (type === 'qingZai') tint = 0x88ff44;
+    else if (type === 'shuangZi') tint = 0xffcc44;
+    else if (type === 'hongHui') tint = 0xff6600;
+    else if (type === 'shiHui') tint = 0x4cc9f0;
+
+    // Lock projectile height to standard ground level corresponding to player layer
+    let targetGroundY = GAME_BALANCE.world.surfaceY - 10;
+    if (this.player.y > GAME_BALANCE.world.surfaceY + 20) {
+      targetGroundY = this.scene.scale.height - 40;
+    }
+    const projectileStartY = targetGroundY - 20;
+
+    const projectile = this.scene.add.sprite(this.player.x, projectileStartY, 'betel_nut').setDepth(30);
+    projectile.setTint(tint);
+    projectile.setScale(1.2);
+
+    // Particle emitter for smoke trail trailing behind
+    const trailParticles = this.scene.add.particles(0, 0, 'flame_particle', {
+      scale: { start: 0.6, end: 0.1 },
+      alpha: { start: 0.5, end: 0 },
+      tint: tint,
+      speed: { min: 5, max: 15 },
+      lifespan: 300,
+      frequency: 20,
+    }).setDepth(29);
+    
+    trailParticles.startFollow(projectile);
+
+    const flightTime = 400; // 400ms flight
+    this.scene.tweens.add({
+      targets: projectile,
+      x: impact.x,
+      duration: flightTime,
+      ease: 'Linear',
+    });
+
+    this.scene.tweens.add({
+      targets: projectile,
+      y: projectileStartY - 48,
+      duration: flightTime / 2,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        projectile.destroy();
+        trailParticles.destroy();
+        onImpact(impact.x, targetGroundY);
+      }
+    });
+  }
+
   // A. 青仔檳榔 - 中範圍傷害
   useQingZai(): boolean {
     if (this.uses.qingZai <= 0) return false;
     this.uses.qingZai--;
-    this.player.playThrowAnimation('qingZai');
     const { range, damage, throwDistance } = GAME_BALANCE.skills.qingZai;
-    const impact = this.getThrowImpactPosition(throwDistance);
-    this.doAoEDamage(impact.x, impact.y, range, damage);
-    this.showExplosion(impact.x, impact.y, range, 0x88ff44, 0x44cc00);
+    this.throwProjectile('qingZai', throwDistance, (x, y) => {
+      this.doAoEDamage(x, y, range, damage);
+      this.showExplosion(x, y, range, 0x88ff44, 0x44cc00);
+    });
     return true;
   }
 
-  // B. 雙子檳榔 - 大範圍傷害
+  // B. 雙生檳榔 - 大範圍傷害
   useShuangZi(): boolean {
     if (this.uses.shuangZi <= 0) return false;
     this.uses.shuangZi--;
-    this.player.playThrowAnimation('shuangZi');
     const { range, damage, throwDistance } = GAME_BALANCE.skills.shuangZi;
-    const impact = this.getThrowImpactPosition(throwDistance);
-    this.doAoEDamage(impact.x, impact.y, range, damage);
-    this.showExplosion(impact.x, impact.y, range, 0xffcc44, 0xff8800);
+    this.throwProjectile('shuangZi', throwDistance, (x, y) => {
+      this.doAoEDamage(x, y, range, damage);
+      this.showExplosion(x, y, range, 0xffcc44, 0xff8800);
+    });
     return true;
   }
 
@@ -67,51 +126,69 @@ export class SkillSystem {
   useHongHui(): boolean {
     if (this.uses.hongHui <= 0) return false;
     this.uses.hongHui--;
-    this.player.playThrowAnimation('hongHui');
     const { range, damage, burnDamage, burnIntervalMs, burnDurationMs, throwDistance } = GAME_BALANCE.skills.hongHui;
-    const impact = this.getThrowImpactPosition(throwDistance);
-    const rats = this.getActiveRats();
-    rats.forEach((rat) => {
-      if (Phaser.Math.Distance.Between(impact.x, impact.y, rat.x, rat.y) <= range) {
-        const wasActive = rat.active;
-        rat.takeDamage(damage);
-        if (wasActive && !rat.active) {
-          this.onRatKilled();
-        } else if (rat.active) {
-          rat.applyBurn(burnDamage, burnIntervalMs, burnDurationMs);
+    this.throwProjectile('hongHui', throwDistance, (x, y) => {
+      const rats = this.getActiveRats();
+      rats.forEach((rat) => {
+        if (Phaser.Math.Distance.Between(x, y, rat.x, rat.y) <= range) {
+          const wasActive = rat.active;
+          rat.takeDamage(damage);
+          if (wasActive && !rat.active) {
+            this.onRatKilled();
+          } else if (rat.active) {
+            rat.applyBurn(burnDamage, burnIntervalMs, burnDurationMs);
+          }
         }
-      }
+      });
+      this.showExplosion(x, y, range, 0xff6600, 0xff2200);
     });
-    this.showExplosion(impact.x, impact.y, range, 0xff6600, 0xff2200);
     return true;
   }
 
-  // D. 白灰檳榔 - 大範圍減速持續區域
-  useBaiHui(): boolean {
-    if (this.uses.baiHui <= 0) return false;
-    this.uses.baiHui--;
-    this.player.playThrowAnimation('baiHui');
-    const { range, slowFactor, durationMs, throwDistance } = GAME_BALANCE.skills.baiHui;
-    const impact = this.getThrowImpactPosition(throwDistance);
-    const g = this.scene.add.graphics().setDepth(10);
-    g.fillStyle(0xaaddff, 0.25);
-    g.fillCircle(impact.x, impact.y, range);
-    g.lineStyle(2, 0x88bbff, 0.9);
-    g.strokeCircle(impact.x, impact.y, range);
+  // D. 石灰檳榔 - 大範圍減速持續區域
+  useShiHui(): boolean {
+    const usesLeft = (this.uses as any).shiHui ?? 0;
+    if (usesLeft <= 0) return false;
+    (this.uses as any).shiHui--;
+    const skillConfig = (GAME_BALANCE.skills as any).shiHui;
+    const { range, slowFactor, durationMs, throwDistance } = skillConfig;
+    this.throwProjectile('shiHui', throwDistance, (x, y) => {
+      const g = this.scene.add.graphics().setDepth(10);
+      g.fillStyle(0xaaddff, 0.25);
+      g.fillCircle(x, y, range);
+      g.lineStyle(2, 0x88bbff, 0.9);
+      g.strokeCircle(x, y, range);
 
-    const zone: SlowZone = {
-      x: impact.x,
-      y: impact.y,
-      radius: range,
-      slowFactor,
-      active: true,
-      graphics: g,
-    };
-    this.slowZones.push(zone);
+      // Create ice-blue blizzard/snow particle effect in the slow zone
+      const iceParticles = this.scene.add.particles(x, y, 'flame_particle', {
+        scale: { start: 0.4, end: 0.1 },
+        alpha: { start: 0.6, end: 0 },
+        tint: 0xa8dadc, // ice blue tint
+        speed: { min: 20, max: 50 },
+        angle: { min: 0, max: 360 },
+        lifespan: 1000,
+        frequency: 150,
+        emitZone: {
+          type: 'random',
+          source: new Phaser.Geom.Circle(0, 0, range)
+        }
+      }).setDepth(9);
 
-    this.scene.time.delayedCall(durationMs, () => {
-      zone.active = false;
-      g.destroy();
+      const zone: SlowZone = {
+        x,
+        y,
+        radius: range,
+        slowFactor,
+        active: true,
+        graphics: g,
+      };
+      this.slowZones.push(zone);
+
+      this.scene.time.delayedCall(durationMs, () => {
+        zone.active = false;
+        g.destroy();
+        iceParticles.destroy();
+      });
     });
     return true;
   }
@@ -121,7 +198,13 @@ export class SkillSystem {
     if (this.uses.baoYe <= 0) return false;
     this.uses.baoYe--;
     this.player.playThrowAnimation('baoYe');
-    this.player.activateShield(GAME_BALANCE.skills.baoYe.shieldHits, GAME_BALANCE.skills.baoYe.radius);
+
+    const upgrades = this.scene.registry.get('upgrades') as { baoYeShield?: number } | undefined;
+    const level = upgrades?.baoYeShield ?? 1;
+    const shieldValues = [3, 5, 8];
+    const shieldHits = shieldValues[Math.min(Math.max(1, level), shieldValues.length) - 1];
+
+    this.player.activateShield(shieldHits, GAME_BALANCE.skills.baoYe.radius);
     return true;
   }
 
@@ -130,16 +213,14 @@ export class SkillSystem {
     if (this.uses.anzo <= 0) return false;
     this.uses.anzo--;
     
-    // 依據玩家當前所在的 Y 座標，大於 surfaceY 則在地下層，否則在地面層
     const yLevel = this.player.y > GAME_BALANCE.world.surfaceY + 20 
-      ? this.scene.scale.height - 60 // 地下層地板 Y (特工高 40)
-      : GAME_BALANCE.world.surfaceY - 20; // 地面層地板 Y (特工高 40)
+      ? this.scene.scale.height - 60 
+      : GAME_BALANCE.world.surfaceY - 20; 
 
     new AnzoAgent(this.scene, yLevel, this.getActiveRats, this.onRatKilled);
     return true;
   }
 
-  // 每幀呼叫，處理減速區域邏輯
   update(): void {
     this.slowZones = this.slowZones.filter((z) => z.active);
 
@@ -175,7 +256,6 @@ export class SkillSystem {
     g.lineStyle(3, strokeColor, 0.9);
     g.strokeCircle(x, y, radius);
 
-    // 爆炸動畫：快速淡出
     this.scene.tweens.add({
       targets: g,
       alpha: 0,

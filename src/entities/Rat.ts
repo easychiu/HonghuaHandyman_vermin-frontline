@@ -3,10 +3,11 @@ import { GAME_BALANCE, RatFaction } from '../config/gameBalance';
 import { RatState } from '../types/ratState';
 
 export class Rat extends Phaser.Physics.Arcade.Sprite {
-  private moveSpeed = 100;
+  public moveSpeed = 100;
   public currentDirection = 1;
   public isPanicking = false;
   public isClimbing = false;
+  public isChewing = false;
   public faction: RatFaction = 'green';
   public hp = 2;
   private maxHp = 2;
@@ -20,6 +21,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
   private surfaceY = GAME_BALANCE.world.surfaceY;
   // External speed multiplier applied by slow zones (1.0 = normal, < 1.0 = slowed)
   public externalSpeedMultiplier = 1.0;
+  private burnEmitter?: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, 'rat');
@@ -29,6 +31,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.body?.reset(x, y);
     this.setActive(true);
     this.setVisible(true);
+    this.setAlpha(1);
 
     this.faction = faction;
     const profile = GAME_BALANCE.rat.profiles[faction];
@@ -47,6 +50,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
 
     this.isPanicking = false;
     this.isClimbing = false;
+    this.isChewing = false;
     this.state = 'wander';
     this.canTakeDamage = true;
     this.edgeCheckTimer = 0;
@@ -54,6 +58,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.bossSurfaceY = GAME_BALANCE.world.surfaceY;
     this.surfaceY = GAME_BALANCE.world.surfaceY;
     this.externalSpeedMultiplier = 1.0;
+    this.stopBurnParticles();
 
     if (this.body) {
       (this.body as Phaser.Physics.Arcade.Body).setAllowGravity(true);
@@ -106,10 +111,16 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
   // Apply periodic burn damage over time
   applyBurn(damage: number, intervalMs: number, durationMs: number): void {
     if (!this.active) return;
+
+    this.startBurnParticles();
+
     const ticks = Math.floor(durationMs / intervalMs);
     for (let i = 1; i <= ticks; i++) {
       this.scene.time.delayedCall(i * intervalMs, () => {
-        if (!this.active) return;
+        if (!this.active) {
+          this.stopBurnParticles();
+          return;
+        }
         this.setTintFill(0xff6600);
         this.scene.time.delayedCall(150, () => {
           if (!this.active) return;
@@ -118,6 +129,36 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
         });
         this.takeDamage(damage);
       });
+    }
+
+    this.scene.time.delayedCall(durationMs, () => {
+      this.stopBurnParticles();
+    });
+  }
+
+  private startBurnParticles(): void {
+    this.stopBurnParticles();
+    if (!this.active) return;
+
+    // Small fire embers rising from the rat, tinted with flame colors
+    const particles = this.scene.add.particles(0, 0, 'flame_particle', {
+      scale: { start: 0.8, end: 0.1 },
+      alpha: { start: 0.8, end: 0 },
+      tint: [0xff4500, 0xff8c00, 0xffd700], // red, orange, yellow sparks
+      speed: { min: 20, max: 40 },
+      angle: { min: 240, max: 300 },
+      lifespan: 400,
+      frequency: 80,
+    }).setDepth(18);
+
+    particles.startFollow(this);
+    this.burnEmitter = particles;
+  }
+
+  private stopBurnParticles(): void {
+    if (this.burnEmitter) {
+      this.burnEmitter.destroy();
+      this.burnEmitter = undefined;
     }
   }
 
@@ -179,9 +220,15 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
 
   despawn(): void {
     this.state = 'dead';
+    this.stopBurnParticles();
     this.setActive(false);
     this.setVisible(false);
     this.body?.stop();
+  }
+
+  destroy(fromScene?: boolean): void {
+    this.stopBurnParticles();
+    super.destroy(fromScene);
   }
 
   preUpdate(time: number, delta: number): void {
@@ -190,9 +237,18 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    if (this.body.blocked.right) {
+    if (this.isChewing) {
+      this.setVelocity(0, 0);
+      // wiggling/chewing rotation effect
+      this.setAngle(Math.sin(time * 0.05) * 6);
+      return;
+    } else {
+      this.setAngle(0);
+    }
+
+    if (this.body.blocked.right || this.body.touching.right) {
       this.currentDirection = -1;
-    } else if (this.body.blocked.left) {
+    } else if (this.body.blocked.left || this.body.touching.left) {
       this.currentDirection = 1;
     }
 
