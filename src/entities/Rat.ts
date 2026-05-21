@@ -40,7 +40,10 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.hp = profile.maxHp;
     this.moveSpeed = profile.moveSpeed;
     this.panicThreshold = profile.panicThreshold;
-    this.setTint(profile.tint);
+    // Use faction-specific texture instead of tinting the same sprite
+    const textureKey = faction === 'blue' ? 'rat_blue' : 'rat_green';
+    this.setTexture(textureKey);
+    this.clearTint();
 
     this.currentDirection = velocityX >= 0 ? 1 : -1;
     this.setVelocityX(this.moveSpeed * this.currentDirection);

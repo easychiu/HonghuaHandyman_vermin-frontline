@@ -408,6 +408,9 @@ export class MainGameScene extends Phaser.Scene {
 
   private createPortal(portalX: number, portalY: number): void {
     const portal = this.add.image(portalX, portalY, 'portal_texture').setDisplaySize(60, 60);
+    // Capture the scale AFTER setDisplaySize so breathing is relative to 60x60, not raw texture size
+    const baseScaleX = portal.scaleX;
+    const baseScaleY = portal.scaleY;
     this.tweens.add({
       targets: portal,
       angle: 360,
@@ -416,12 +419,13 @@ export class MainGameScene extends Phaser.Scene {
     });
     this.tweens.add({
       targets: portal,
-      alpha: 0.5,
-      scaleX: 0.25,
-      scaleY: 0.15,
-      duration: 800,
+      alpha: 0.6,
+      scaleX: baseScaleX * 0.8,
+      scaleY: baseScaleY * 0.8,
+      duration: 900,
       yoyo: true,
       repeat: -1,
+      ease: 'Sine.InOut',
     });
   }
 }

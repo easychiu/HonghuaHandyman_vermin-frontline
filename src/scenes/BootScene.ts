@@ -16,6 +16,8 @@ export class BootScene extends Phaser.Scene {
 
     // Preload custom pixel art sprites to replace procedural shapes
     this.load.image('rat', 'assets/rat.png');
+    this.load.image('rat_green', 'assets/rat_green.png');
+    this.load.image('rat_blue', 'assets/rat_blue.png');
     this.load.image('betel_nut', 'assets/betel_nut.png');
     this.load.image('trap_texture', 'assets/trap_bear.png');
     this.load.image('trap_cheese', 'assets/trap_cheese.png');
