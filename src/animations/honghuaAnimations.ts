@@ -15,7 +15,7 @@ const FRAME_RANGES = {
   idle: { start: 30, end: 35 },
 } as const;
 
-export const HONGHUA_TEXTURE_KEY = 'honghua';
+export const HONGHUA_TEXTURE_KEY = 'honghua2';
 
 export const HONGHUA_ANIMATION_KEYS = {
   walkRight: 'honghua-walk-right',
