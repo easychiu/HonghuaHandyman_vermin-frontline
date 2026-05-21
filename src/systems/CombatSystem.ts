@@ -90,12 +90,53 @@ export class CombatSystem {
     trap.despawn();
   }
 
+  private showHitEffect(x: number, y: number, color: number): void {
+    const particles = this.scene.add.graphics().setDepth(100);
+    particles.fillStyle(color, 0.85);
+
+    const dots: { x: number; y: number; vx: number; vy: number }[] = [];
+    for (let i = 0; i < 6; i++) {
+      dots.push({
+        x,
+        y,
+        vx: Phaser.Math.Between(-120, 120),
+        vy: Phaser.Math.Between(-150, -50),
+      });
+    }
+
+    const timer = this.scene.time.addEvent({
+      delay: 16,
+      repeat: 15,
+      callback: () => {
+        particles.clear();
+        particles.fillStyle(color, 0.85);
+        dots.forEach((dot) => {
+          dot.x += dot.vx * 0.016;
+          dot.y += dot.vy * 0.016;
+          dot.vy += 300 * 0.016; // gravity
+          particles.fillCircle(dot.x, dot.y, 3);
+        });
+      },
+      callbackScope: this,
+    });
+
+    this.scene.time.delayedCall(250, () => {
+      timer.remove();
+      particles.destroy();
+    });
+  }
+
   private applyDamage(rat: Rat, amount: number): void {
     const wasActive = rat.active;
+
+    const hitColor = rat.faction === 'green' ? 0x2ec4b6 : 0x00b4d8;
+    this.showHitEffect(rat.x, rat.y, hitColor);
+
     rat.takeDamage(amount);
 
     if (wasActive && !rat.active) {
       this.onRatKilled();
+      this.scene.cameras.main.shake(120, 0.005);
     }
   }
 }

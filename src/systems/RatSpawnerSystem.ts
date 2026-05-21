@@ -13,15 +13,27 @@ interface RatSpawnerSystemConfig {
 }
 
 export class RatSpawnerSystem {
-  private autoSpawnTimer?: Phaser.Time.TimerEvent;
+  private autoSpawnTimerGreen?: Phaser.Time.TimerEvent;
+  private autoSpawnTimerBlue?: Phaser.Time.TimerEvent;
 
   constructor(private readonly config: RatSpawnerSystemConfig) {}
 
   startAutoSpawn(): void {
-    this.autoSpawnTimer = this.config.scene.time.addEvent({
+    // 綠鼠：從右側傳送門生成，往左跑
+    this.autoSpawnTimerGreen = this.config.scene.time.addEvent({
       delay: GAME_BALANCE.rat.spawnIntervalMs,
       callback: () => {
         this.spawn('green', this.config.portalX, this.config.portalY, Phaser.Math.Between(-160, -70));
+      },
+      callbackScope: this,
+      loop: true,
+    });
+
+    // 藍鼠：從地下左側生成，往右跑
+    this.autoSpawnTimerBlue = this.config.scene.time.addEvent({
+      delay: GAME_BALANCE.rat.blueSpawnIntervalMs,
+      callback: () => {
+        this.spawn('blue', 40, this.config.portalY, Phaser.Math.Between(70, 160));
       },
       callbackScope: this,
       loop: true,
@@ -34,8 +46,10 @@ export class RatSpawnerSystem {
   }
 
   stop(): void {
-    this.autoSpawnTimer?.remove(false);
-    this.autoSpawnTimer = undefined;
+    this.autoSpawnTimerGreen?.remove(false);
+    this.autoSpawnTimerGreen = undefined;
+    this.autoSpawnTimerBlue?.remove(false);
+    this.autoSpawnTimerBlue = undefined;
   }
 
   private spawn(faction: RatFaction, x: number, y: number, velocityX: number): void {

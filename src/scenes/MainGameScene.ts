@@ -34,6 +34,7 @@ export class MainGameScene extends Phaser.Scene {
   private skillSystem!: SkillSystem;
   private inputController!: GameInputController;
   private debugPointerSpawnEnabled = false;
+  private lastOxygenDamageTime?: number;
 
   constructor() {
     super(SCENE_KEYS.mainGame);
@@ -59,9 +60,11 @@ export class MainGameScene extends Phaser.Scene {
     this.inputController = new GameInputController(this);
     this.player = new Player(this, 100, 100, this.inputController);
 
-    // 初始化 registry 血量資料
+    // 初始化 registry 血量與氧氣資料
     this.registry.set('playerHp', this.player.hp);
     this.registry.set('playerMaxHp', this.player.maxHp);
+    this.registry.set('playerOxygen', this.player.oxygen);
+    this.registry.set('playerMaxOxygen', this.player.maxOxygen);
 
     this.physics.add.collider(this.greenRatPool, this.platforms);
     this.physics.add.collider(this.blueRatPool, this.platforms);
@@ -168,6 +171,8 @@ export class MainGameScene extends Phaser.Scene {
       onComplete: () => {
         this.ratSpawnerSystem.stop();
         this.bossController.stop();
+        this.registry.set('gameStatus', 'victory');
+        this.physics.pause();
       },
     });
     this.levelTimerSystem.start();
@@ -194,8 +199,64 @@ export class MainGameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    const gameStatus = this.registry.get('gameStatus');
+    if (gameStatus === 'victory' || gameStatus === 'gameover') {
+      return;
+    }
+
+    if (!this.player.isAlive()) {
+      this.registry.set('gameStatus', 'gameover');
+      this.physics.pause();
+      this.ratSpawnerSystem.stop();
+      this.levelTimerSystem.stop();
+      this.bossController.stop();
+      return;
+    }
+
+    this.registry.set('remainingRats', this.getActiveRats().length);
+
     this.inputController.update();
     this.player.update(delta);
+
+    // 1. 爬管下樓檢測 (玩家在地面且在管道附近按住 S/下鍵)
+    if (this.inputController.isClimbDownHeld() && this.player.y <= GAME_BALANCE.world.surfaceY + 10) {
+      if (Math.abs(this.player.x - 480) < 40) {
+        this.player.setPosition(480, GAME_BALANCE.world.surfaceY + 30);
+        this.player.playClimbAnimation();
+      }
+    }
+
+    // 2. 地下層缺氧與地面呼吸邏輯
+    if (this.player.y > GAME_BALANCE.world.surfaceY + 20) {
+      // 在地下層：消耗氧氣
+      this.player.oxygen = Math.max(
+        0,
+        this.player.oxygen - GAME_BALANCE.player.oxygenUseRate * (delta / 1000)
+      );
+
+      if (this.player.oxygen <= 0) {
+        if (!this.lastOxygenDamageTime) {
+          this.lastOxygenDamageTime = this.time.now;
+        }
+        if (this.time.now - this.lastOxygenDamageTime >= GAME_BALANCE.player.oxygenDamageIntervalMs) {
+          this.player.receiveRatDamage(GAME_BALANCE.player.oxygenDamage);
+          this.registry.set('playerHp', this.player.hp);
+          this.lastOxygenDamageTime = this.time.now;
+        }
+      } else {
+        this.lastOxygenDamageTime = undefined;
+      }
+    } else {
+      // 在地面層：恢復氧氣
+      this.player.oxygen = Math.min(
+        this.player.maxOxygen,
+        this.player.oxygen + GAME_BALANCE.player.oxygenRestoreRate * (delta / 1000)
+      );
+      this.lastOxygenDamageTime = undefined;
+    }
+
+    // 同步氧氣至 registry
+    this.registry.set('playerOxygen', this.player.oxygen);
 
     if (this.inputController.isAttackJustPressed()) {
       this.combatSystem.handlePlayerAttack();
@@ -206,12 +267,13 @@ export class MainGameScene extends Phaser.Scene {
     }
 
     // 技能輸入
-    const skillActions: Array<[1 | 2 | 3 | 4 | 5, () => boolean]> = [
+    const skillActions: Array<[1 | 2 | 3 | 4 | 5 | 6, () => boolean]> = [
       [1, () => this.skillSystem.useQingZai()],
       [2, () => this.skillSystem.useShuangZi()],
       [3, () => this.skillSystem.useHongHui()],
       [4, () => this.skillSystem.useBaiHui()],
       [5, () => this.skillSystem.useBaoYe()],
+      [6, () => this.skillSystem.useAnzo()],
     ];
     for (const [key, action] of skillActions) {
       if (this.inputController.isSkillJustPressed(key)) {
@@ -255,21 +317,26 @@ export class MainGameScene extends Phaser.Scene {
     pipeObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile,
   ): void {
     const player = playerObj as Player;
-    if (!player.active || !player.body || !this.inputController.isClimbUpHeld()) {
-      return;
-    }
-
-    if (player.y <= GAME_BALANCE.world.surfaceY) {
+    if (!player.active || !player.body) {
       return;
     }
 
     const pipe = pipeObj as Phaser.Physics.Arcade.StaticImage;
-    const surfaceLandingY =
-      GAME_BALANCE.world.surfaceY - GAME_BALANCE.world.surfacePlatformThickness / 2 - player.displayHeight / 2;
 
-    player.playClimbAnimation();
-    player.setPosition(pipe.x, surfaceLandingY);
-    player.setVelocityY(-60);
+    if (this.inputController.isClimbUpHeld()) {
+      if (player.y <= GAME_BALANCE.world.surfaceY + 10) {
+        const surfaceLandingY =
+          GAME_BALANCE.world.surfaceY - GAME_BALANCE.world.surfacePlatformThickness / 2 - player.displayHeight / 2;
+        player.setPosition(pipe.x, surfaceLandingY);
+        player.setVelocityY(-60);
+      } else {
+        player.playClimbAnimation();
+        player.setVelocityY(-180);
+      }
+    } else if (this.inputController.isClimbDownHeld()) {
+      player.playClimbAnimation();
+      player.setVelocityY(180);
+    }
   }
 
   private getActiveRats(): Rat[] {
@@ -299,75 +366,167 @@ export class MainGameScene extends Phaser.Scene {
   private createPlatforms(width: number, height: number): Phaser.Physics.Arcade.StaticGroup {
     const platforms = this.physics.add.staticGroup();
 
-    const groundLeft = platforms.create(200, GAME_BALANCE.world.surfaceY, 'ground_texture');
-    groundLeft.setDisplaySize(400, 20);
-    groundLeft.refreshBody();
+    const groundLeft = this.add.tileSprite(200, GAME_BALANCE.world.surfaceY, 400, 20, 'ground_texture');
+    this.physics.add.existing(groundLeft, true);
+    platforms.add(groundLeft);
 
-    const groundRight = platforms.create(760, GAME_BALANCE.world.surfaceY, 'ground_texture');
-    groundRight.setDisplaySize(400, 20);
-    groundRight.refreshBody();
+    const groundRight = this.add.tileSprite(760, GAME_BALANCE.world.surfaceY, 400, 20, 'ground_texture');
+    this.physics.add.existing(groundRight, true);
+    platforms.add(groundRight);
 
-    const undergroundFloor = platforms.create(width / 2, height - 20, 'underground_texture');
-    undergroundFloor.setDisplaySize(width, 40);
-    undergroundFloor.refreshBody();
+    const undergroundFloor = this.add.tileSprite(width / 2, height - 20, width, 40, 'underground_texture');
+    this.physics.add.existing(undergroundFloor, true);
+    platforms.add(undergroundFloor);
 
     return platforms;
   }
 
   private createCommonTextures(height: number): void {
     if (!this.textures.exists('ground_texture')) {
+      const w = 100;
+      const h = 20;
       const g = this.add.graphics();
-      g.fillStyle(0xdddddd);
-      g.fillRect(0, 0, 100, 20);
-      g.generateTexture('ground_texture', 100, 20);
+      // Dark grey asphalt
+      g.fillStyle(0x2b2d42);
+      g.fillRect(0, 0, w, h);
+      // Top curb light grey border
+      g.fillStyle(0x8d99ae);
+      g.fillRect(0, 0, w, 4);
+      // Sidewalk vertical cracks/lines
+      g.fillStyle(0x1d3557, 0.4);
+      for (let x = 0; x < w; x += 25) {
+        g.fillRect(x, 4, 2, h - 4);
+      }
+      g.generateTexture('ground_texture', w, h);
       g.destroy();
     }
 
     if (!this.textures.exists('underground_texture')) {
+      const w = 100;
+      const h = 40;
       const g = this.add.graphics();
-      g.fillStyle(0x3e2723);
-      g.fillRect(0, 0, 100, 40);
-      g.generateTexture('underground_texture', 100, 40);
+      // Sewer dirty bricks (brownish/grey)
+      g.fillStyle(0x3d3a4f); // Brick base
+      g.fillRect(0, 0, w, h);
+      // Brick borders
+      g.fillStyle(0x1a1a24, 0.8);
+      g.fillRect(0, 0, w, 3); // top border
+      g.fillRect(0, h - 3, w, 3); // bottom border
+      // Draw horizontal mortar lines
+      g.fillRect(0, 12, w, 2);
+      g.fillRect(0, 26, w, 2);
+      // Draw vertical mortar lines
+      for (let y = 0; y < h; y += 14) {
+        const offset = y % 28 === 0 ? 0 : 25;
+        for (let x = offset; x < w; x += 50) {
+          g.fillRect(x, y, 2, 14);
+        }
+      }
+      g.generateTexture('underground_texture', w, h);
       g.destroy();
     }
 
     if (!this.textures.exists('pipe_texture')) {
+      const w = 40;
+      const h = height - GAME_BALANCE.world.surfaceY;
       const g = this.add.graphics();
-      g.fillStyle(0x555555);
-      g.fillRect(0, 0, 40, height - GAME_BALANCE.world.surfaceY);
-      g.generateTexture('pipe_texture', 40, height - GAME_BALANCE.world.surfaceY);
+      // Pipe metallic gradient (simulated with lines)
+      for (let i = 0; i < w; i++) {
+        // Center of the pipe is bright, sides are dark
+        const ratio = i / w;
+        const colorVal = Math.floor(Math.sin(ratio * Math.PI) * 90) + 40; // 40 to 130
+        const color = Phaser.Display.Color.GetColor(colorVal, colorVal, colorVal + 10);
+        g.fillStyle(color);
+        g.fillRect(i, 0, 1, h);
+      }
+      // Add horizontal joint lines/ridges every 40px
+      g.fillStyle(0x222222, 0.6);
+      for (let y = 0; y < h; y += 40) {
+        g.fillRect(0, y, w, 4);
+        g.fillRect(0, y + 4, w, 2); // Highlight/shadow
+      }
+      g.generateTexture('pipe_texture', w, h);
       g.destroy();
     }
 
     if (!this.textures.exists('rat')) {
+      const w = 24;
+      const h = 16;
       const g = this.add.graphics();
+      // Rat body: oval/ellipse
       g.fillStyle(0xffffff);
-      g.fillRect(0, 0, 24, 24);
-      g.generateTexture('rat', 24, 24);
+      g.fillEllipse(w / 2 - 2, h / 2 + 1, 14, 10);
+      // Rat head: circle/triangle pointing right
+      g.fillTriangle(w / 2, h / 2 - 3, w / 2, h / 2 + 5, w - 2, h / 2 + 1);
+      // Rat ears: small circle
+      g.fillCircle(w / 2 - 2, h / 2 - 3, 3);
+      // Rat eye: tiny black circle
+      g.fillStyle(0x000000);
+      g.fillCircle(w / 2 + 4, h / 2 - 1, 1.2);
+      // Rat tail: light grey line dragging behind (on the left)
+      g.lineStyle(1.5, 0xcccccc);
+      g.beginPath();
+      g.moveTo(4, h / 2 + 3);
+      g.lineTo(1, h / 2 + 6);
+      g.lineTo(0, h / 2 + 4);
+      g.strokePath();
+
+      g.generateTexture('rat', w, h);
       g.destroy();
     }
 
     if (!this.textures.exists('trap_texture')) {
+      const w = 24;
+      const h = 10;
       const g = this.add.graphics();
-      g.fillStyle(0x9d4edd);
-      g.fillRect(0, 0, 24, 8);
-      g.generateTexture('trap_texture', 24, 8);
+      // Steel base plate
+      g.fillStyle(0x4a4e69);
+      g.fillRect(2, 6, w - 4, 4);
+      // Spikes/Teeth (jaw shapes)
+      g.fillStyle(0xc0c0c0);
+      g.fillTriangle(4, 6, 6, 0, 8, 6);
+      g.fillTriangle(10, 6, 12, 0, 14, 6);
+      g.fillTriangle(16, 6, 18, 0, 20, 6);
+
+      g.generateTexture('trap_texture', w, h);
       g.destroy();
     }
 
     if (!this.textures.exists('human_texture')) {
+      const w = 24;
+      const h = 40;
       const g = this.add.graphics();
+      // Head
       g.fillStyle(0xffffff);
-      g.fillRect(0, 0, 24, 40);
-      g.generateTexture('human_texture', 24, 40);
+      g.fillCircle(w / 2, 8, 6);
+      // Torso (Shirt)
+      g.fillStyle(0xdddddd);
+      g.fillRect(w / 2 - 8, 14, 16, 14);
+      // Legs (Pants)
+      g.fillStyle(0xaaaaaa);
+      g.fillRect(w / 2 - 6, 28, 12, 12);
+
+      g.generateTexture('human_texture', w, h);
       g.destroy();
     }
 
     if (!this.textures.exists('portal_texture')) {
+      const size = 60;
       const g = this.add.graphics();
-      g.fillStyle(0x9d4edd, 0.8);
-      g.fillCircle(20, 20, 20);
-      g.generateTexture('portal_texture', 40, 40);
+      // Outer purple glow
+      g.fillStyle(0x7b2cbf, 0.4);
+      g.fillCircle(size/2, size/2, size/2);
+      // Inner magenta swirl
+      g.fillStyle(0x9d4edd, 0.7);
+      g.fillCircle(size/2, size/2, size/2 - 6);
+      // Center dark core
+      g.fillStyle(0x240046, 0.95);
+      g.fillCircle(size/2, size/2, size/2 - 14);
+      // Core portal star
+      g.fillStyle(0xe0aaff, 1);
+      g.fillCircle(size/2, size/2, 4);
+
+      g.generateTexture('portal_texture', size, size);
       g.destroy();
     }
   }
@@ -384,10 +543,16 @@ export class MainGameScene extends Phaser.Scene {
     const portal = this.add.image(portalX, portalY, 'portal_texture');
     this.tweens.add({
       targets: portal,
-      alpha: 0.4,
-      scaleX: 1.2,
-      scaleY: 1.2,
-      duration: 1000,
+      angle: 360,
+      duration: 3000,
+      repeat: -1,
+    });
+    this.tweens.add({
+      targets: portal,
+      alpha: 0.5,
+      scaleX: 1.15,
+      scaleY: 1.15,
+      duration: 800,
       yoyo: true,
       repeat: -1,
     });

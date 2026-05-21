@@ -19,5 +19,5 @@ export const defaultHudState: HudState = {
   bossActive: false,
   playerHp: 10,
   playerMaxHp: 10,
-  skillUses: { qingZai: 3, shuangZi: 2, hongHui: 1, baiHui: 1, baoYe: 1 },
+  skillUses: { qingZai: 3, shuangZi: 2, hongHui: 1, baiHui: 1, baoYe: 1, anzo: 2 },
 };

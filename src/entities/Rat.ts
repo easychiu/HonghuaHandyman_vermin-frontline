@@ -42,6 +42,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
 
     this.currentDirection = velocityX >= 0 ? 1 : -1;
     this.setVelocityX(this.moveSpeed * this.currentDirection);
+    this.setFlipX(this.currentDirection === -1);
     this.setBounceY(0.2);
 
     this.isPanicking = false;
@@ -230,6 +231,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.setVelocityX(this.moveSpeed * this.externalSpeedMultiplier * this.currentDirection);
+    this.setFlipX(this.currentDirection === -1);
 
     if (this.y > this.scene.scale.height + 50) {
       this.despawn();

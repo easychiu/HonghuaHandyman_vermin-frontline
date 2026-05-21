@@ -2,8 +2,9 @@ import Phaser from 'phaser';
 import { GAME_BALANCE } from '../config/gameBalance';
 import { Player } from '../entities/Player';
 import { Rat } from '../entities/Rat';
+import { AnzoAgent } from '../entities/AnzoAgent';
 
-export type SkillType = 'qingZai' | 'shuangZi' | 'hongHui' | 'baiHui' | 'baoYe';
+export type SkillType = 'qingZai' | 'shuangZi' | 'hongHui' | 'baiHui' | 'baoYe' | 'anzo';
 
 interface SlowZone {
   x: number;
@@ -30,6 +31,7 @@ export class SkillSystem {
       hongHui:  GAME_BALANCE.skills.hongHui.uses,
       baiHui:   GAME_BALANCE.skills.baiHui.uses,
       baoYe:    GAME_BALANCE.skills.baoYe.uses,
+      anzo:     GAME_BALANCE.skills.anzo.uses,
     };
   }
 
@@ -120,6 +122,20 @@ export class SkillSystem {
     this.uses.baoYe--;
     this.player.playThrowAnimation('baoYe');
     this.player.activateShield(GAME_BALANCE.skills.baoYe.shieldHits, GAME_BALANCE.skills.baoYe.radius);
+    return true;
+  }
+
+  // F. 庵左特工召喚
+  useAnzo(): boolean {
+    if (this.uses.anzo <= 0) return false;
+    this.uses.anzo--;
+    
+    // 依據玩家當前所在的 Y 座標，大於 surfaceY 則在地下層，否則在地面層
+    const yLevel = this.player.y > GAME_BALANCE.world.surfaceY + 20 
+      ? this.scene.scale.height - 60 // 地下層地板 Y (特工高 40)
+      : GAME_BALANCE.world.surfaceY - 20; // 地面層地板 Y (特工高 40)
+
+    new AnzoAgent(this.scene, yLevel, this.getActiveRats, this.onRatKilled);
     return true;
   }
 

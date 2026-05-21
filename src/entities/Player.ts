@@ -30,6 +30,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private invincibilityTimer?: Phaser.Time.TimerEvent;
   private flashTimer?: Phaser.Time.TimerEvent;
 
+  // --- 氧氣系統 ---
+  public oxygen: number;
+  public readonly maxOxygen: number;
+
   // --- 護盾系統 ---
   public shieldHitsLeft = 0;
   private shieldGraphics?: Phaser.GameObjects.Graphics;
@@ -46,6 +50,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     
     this.maxHp = GAME_BALANCE.player.maxHp;
     this.hp = this.maxHp;
+
+    this.maxOxygen = GAME_BALANCE.player.oxygenMax;
+    this.oxygen = this.maxOxygen;
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -200,6 +207,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const hpColor = ratio > 0.5 ? 0x44ff44 : ratio > 0.25 ? 0xffaa00 : 0xff3333;
     this.healthBarGraphics.fillStyle(hpColor, 1);
     this.healthBarGraphics.fillRect(barX, barY, barW * ratio, barH);
+
+    // 氧氣條 (只有在不滿時才顯示)
+    if (this.oxygen < this.maxOxygen) {
+      const oxyRatio = this.maxOxygen > 0 ? this.oxygen / this.maxOxygen : 0;
+      const oxyBarY = barY + barH + 3;
+      // 背景
+      this.healthBarGraphics.fillStyle(0x000000, 0.6);
+      this.healthBarGraphics.fillRect(barX - 1, oxyBarY - 1, barW + 2, 4);
+      // 藍色氧氣條
+      this.healthBarGraphics.fillStyle(0x00d2ff, 1);
+      this.healthBarGraphics.fillRect(barX, oxyBarY, barW * oxyRatio, 2);
+    }
   }
 
   destroy(fromScene?: boolean): void {

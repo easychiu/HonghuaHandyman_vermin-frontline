@@ -36,6 +36,7 @@ export const GAME_BALANCE = {
   },
   rat: {
     spawnIntervalMs: 1800,
+    blueSpawnIntervalMs: 3500,
     bossDriveSpeed: 320,
     bossDrivePulseMs: 450,
     climbTriggerDistance: 28,
@@ -64,6 +65,11 @@ export const GAME_BALANCE = {
     maxHp: 10,
     invincibilityMs: 600,
     flashIntervalMs: 100,
+    oxygenMax: 100,
+    oxygenUseRate: 6.67, // per second underground (15s duration)
+    oxygenRestoreRate: 25.0, // per second on surface (4s recovery)
+    oxygenDamage: 1,
+    oxygenDamageIntervalMs: 1000,
   },
   skills: {
     qingZai:  { range: 120, damage: 3, throwDistance: 140, uses: 3 },
@@ -71,6 +77,7 @@ export const GAME_BALANCE = {
     hongHui:  { range: 120, damage: 2, burnDamage: 1, burnIntervalMs: 600, burnDurationMs: 3000, throwDistance: 150, uses: 1 },
     baiHui:   { range: 200, slowFactor: 0.3, durationMs: 4000, throwDistance: 170, uses: 1 },
     baoYe:    { shieldHits: 3, radius: 60, uses: 1 },
+    anzo:     { uses: 2, speed: 240, damage: 10, flameRadius: 50 },
   },
   collision: {
     greenRatDamage: 1,
@@ -79,3 +86,4 @@ export const GAME_BALANCE = {
     bossContactRadius: 64,
   },
 } as const;
+

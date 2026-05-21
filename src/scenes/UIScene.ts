@@ -25,6 +25,7 @@ export class UIScene extends Phaser.Scene {
   private leftZone?: Phaser.GameObjects.Zone;
   private touchControlObjects: Phaser.GameObjects.GameObject[] = [];
   private debugPointerSpawnEnabled = false;
+  private screenOverlayActive = false;
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
     if (!this.touchControlsVisible || this.joystickPointerId !== pointer.id) {
@@ -125,10 +126,14 @@ export class UIScene extends Phaser.Scene {
       skillUses:   (this.registry.get('skillUses')             ?? defaultHudState.skillUses),
     };
 
-    // HP 顯示
+    // HP 顯示與氧氣顯示
+    const oxygen = Math.round(Number(this.registry.get('playerOxygen') ?? 100));
+    const maxOxygen = Math.round(Number(this.registry.get('playerMaxOxygen') ?? 100));
+    const oxygenStr = oxygen < maxOxygen ? `  💧氧氣: ${oxygen}%` : '';
+
     const hearts = '❤'.repeat(hud.playerHp) + '🖤'.repeat(Math.max(0, hud.playerMaxHp - hud.playerHp));
     this.topLeftText?.setText(
-      `HP: ${hud.playerHp}/${hud.playerMaxHp}  ${hearts}\n評分: ${hud.score}\n擊殺: ${hud.kills}\n嚇跑人數: ${hud.scaredHumans}\n倒數: ${hud.timeLeft}s`,
+      `HP: ${hud.playerHp}/${hud.playerMaxHp}  ${hearts}${oxygenStr}\n評分: ${hud.score}\n擊殺: ${hud.kills}\n嚇跑人數: ${hud.scaredHumans}\n倒數: ${hud.timeLeft}s`,
     );
 
     this.bossText?.setText(hud.bossActive ? '⚠ 大BOSS 驅趕鼠群中 ⚠' : '');
@@ -140,10 +145,19 @@ export class UIScene extends Phaser.Scene {
       `[2] B.雙子檳榔  ${s.shuangZi}x\n` +
       `[3] C.紅灰檳榔  ${s.hongHui}x  🔥燃燒\n` +
       `[4] D.白灰檳榔  ${s.baiHui}x  ❄減速\n` +
-      `[5] E.包葉檳榔  ${s.baoYe}x  🛡護盾(3次)`,
+      `[5] E.包葉檳榔  ${s.baoYe}x  🛡護盾(3次)\n` +
+      `[6/R] 庵左特工  ${(s as any).anzo ?? 0}x  🚒召喚`,
     );
 
     this.refreshTouchToggleText(this.debugPointerSpawnEnabled);
+
+    // 偵測勝負狀態
+    const gameStatus = this.registry.get('gameStatus');
+    if (gameStatus === 'victory' && !this.screenOverlayActive) {
+      this.showVictoryScreen(hud);
+    } else if (gameStatus === 'gameover' && !this.screenOverlayActive) {
+      this.showGameOverScreen();
+    }
   }
 
   private createTouchControls(): void {
@@ -185,15 +199,17 @@ export class UIScene extends Phaser.Scene {
       this.time.delayedCall(UIScene.BUTTON_FEEDBACK_DURATION_MS, () => trapBtn.setFillStyle(0x9d4edd, 0.8));
     });
 
-    const skillButtons: Array<{ key: 1 | 2 | 3 | 4 | 5; x: number; y: number; color: number }> = [
-      { key: 1, x: this.scale.width - 270, y: h - 120, color: 0x2b9348 },
-      { key: 2, x: this.scale.width - 225, y: h - 80, color: 0x90a955 },
-      { key: 3, x: this.scale.width - 180, y: h - 120, color: 0xff6b6b },
-      { key: 4, x: this.scale.width - 135, y: h - 80, color: 0x4cc9f0 },
-      { key: 5, x: this.scale.width - 90, y: h - 50, color: 0x00b4d8 },
+    const skillButtons: Array<{ key: 1 | 2 | 3 | 4 | 5 | 6; x: number; y: number; color: number }> = [
+      { key: 1, x: this.scale.width - 315, y: h - 120, color: 0x2b9348 },
+      { key: 2, x: this.scale.width - 270, y: h - 80, color: 0x90a955 },
+      { key: 3, x: this.scale.width - 225, y: h - 120, color: 0xff6b6b },
+      { key: 4, x: this.scale.width - 180, y: h - 80, color: 0x4cc9f0 },
+      { key: 5, x: this.scale.width - 135, y: h - 120, color: 0x00b4d8 },
+      { key: 6, x: this.scale.width - 90, y: h - 50, color: 0xff3333 },
     ];
     skillButtons.forEach(({ key, x, y, color }) => {
-      const btn = this.createTouchButton(x, y, 24, String(key), color);
+      const label = key === 6 ? '特工' : String(key);
+      const btn = this.createTouchButton(x, y, 24, label, color);
       btn.on('pointerdown', () => {
         if (!this.touchControlsVisible) {
           return;
@@ -301,5 +317,135 @@ export class UIScene extends Phaser.Scene {
       `觸控UI: ${this.touchControlsVisible ? 'ON' : 'OFF'}\n` +
       `壓測加鼠: ${debugPointerSpawnEnabled ? 'ON(debugSpawn=1)' : 'OFF'}`,
     );
+  }
+
+  private showVictoryScreen(hud: HudState): void {
+    this.screenOverlayActive = true;
+    this.cleanupTouchControls();
+    this.applyTouchControlVisibility(false);
+
+    const { width, height } = this.scale;
+
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x0f172a, 0.85);
+    overlay.fillRect(0, 0, width, height);
+    overlay.setDepth(2000);
+
+    const remainingRats = Number(this.registry.get('remainingRats') ?? 0);
+    const finalScore = hud.score - remainingRats * 5;
+    
+    let evaluation = 'F';
+    let comment = '紅花的黑歷史...';
+    if (finalScore >= 80) {
+      evaluation = 'S';
+      comment = '萬事屋的榮耀！完美控制鼠患！';
+    } else if (finalScore >= 60) {
+      evaluation = 'A';
+      comment = '備受國王信賴！工作完成出色！';
+    } else if (finalScore >= 40) {
+      evaluation = 'B';
+      comment = '合格的委託人。聲譽依然良好。';
+    } else if (finalScore >= 20) {
+      evaluation = 'C';
+      comment = '差強人意，請繼續努力。';
+    }
+
+    const panelY = height / 2;
+
+    this.add.text(width / 2, panelY - 140, '任務成功！', {
+      color: '#f8fafc',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '44px',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(2005);
+
+    const statsText = 
+      `老鼠擊殺數: ${hud.kills}\n` +
+      `人類受驚次數: ${hud.scaredHumans}\n` +
+      `殘留老鼠總數: ${remainingRats}\n` +
+      `最終聲望分數: ${hud.score}\n` +
+      `結算總評分: ${finalScore}`;
+
+    this.add.text(width / 2 - 120, panelY - 60, statsText, {
+      color: '#cbd5e1',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '18px',
+      lineSpacing: 8,
+    }).setDepth(2005);
+
+    this.add.text(width / 2 + 120, panelY - 40, `國王評價\n\n${evaluation}`, {
+      color: evaluation === 'S' || evaluation === 'A' ? '#f59e0b' : '#94a3b8',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '26px',
+      align: 'center',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(2005);
+
+    this.add.text(width / 2, panelY + 70, `「 ${comment} 」`, {
+      color: '#e2e8f0',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '20px',
+      fontStyle: 'italic',
+    }).setOrigin(0.5).setDepth(2005);
+
+    this.add.text(width / 2, panelY + 150, '重新開始', {
+      color: '#ffffff',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '22px',
+      backgroundColor: '#2563eb',
+      padding: { x: 24, y: 10 },
+    })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2005)
+      .on('pointerdown', () => this.restartGame());
+  }
+
+  private showGameOverScreen(): void {
+    this.screenOverlayActive = true;
+    this.cleanupTouchControls();
+    this.applyTouchControlVisibility(false);
+
+    const { width, height } = this.scale;
+
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x450a0a, 0.9);
+    overlay.fillRect(0, 0, width, height);
+    overlay.setDepth(2000);
+
+    const panelY = height / 2;
+
+    this.add.text(width / 2, panelY - 60, '任務失敗！', {
+      color: '#fecdd3',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '48px',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(2005);
+
+    this.add.text(width / 2, panelY + 10, '紅花體力耗盡，已被老鼠擊敗...', {
+      color: '#fda4af',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '20px',
+    }).setOrigin(0.5).setDepth(2005);
+
+    this.add.text(width / 2, panelY + 100, '重新挑戰', {
+      color: '#ffffff',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '22px',
+      backgroundColor: '#be123c',
+      padding: { x: 24, y: 10 },
+    })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(2005)
+      .on('pointerdown', () => this.restartGame());
+  }
+
+  private restartGame(): void {
+    this.registry.destroy();
+    this.screenOverlayActive = false;
+    this.scene.stop(SCENE_KEYS.ui);
+    this.scene.stop(SCENE_KEYS.mainGame);
+    this.scene.start(SCENE_KEYS.ready);
   }
 }

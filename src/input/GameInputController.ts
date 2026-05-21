@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 
-type SkillKey = 1 | 2 | 3 | 4 | 5;
+type SkillKey = 1 | 2 | 3 | 4 | 5 | 6;
 
 export class GameInputController {
   private static readonly TOUCH_AUTO_ATTACK_INTERVAL_MS = 220;
@@ -22,16 +22,20 @@ export class GameInputController {
   private key3?: Phaser.Input.Keyboard.Key;
   private key4?: Phaser.Input.Keyboard.Key;
   private key5?: Phaser.Input.Keyboard.Key;
+  private key6?: Phaser.Input.Keyboard.Key;
+  private rKey?: Phaser.Input.Keyboard.Key;
 
   private moveAxisX = 0;
   private climbUpHeld = false;
+  private climbDownHeld = false;
   private jumpJustPressed = false;
   private attackJustPressed = false;
   private trapJustPressed = false;
-  private skillJustPressed: Record<SkillKey, boolean> = { 1: false, 2: false, 3: false, 4: false, 5: false };
+  private skillJustPressed: Record<SkillKey, boolean> = { 1: false, 2: false, 3: false, 4: false, 5: false, 6: false };
 
   private touchMoveAxisX = 0;
   private touchClimbUpHeld = false;
+  private touchClimbDownHeld = false;
   private touchJumpQueued = false;
   private touchTrapQueued = false;
   private touchSkillQueued = new Set<SkillKey>();
@@ -45,6 +49,10 @@ export class GameInputController {
 
   private readonly onTouchClimbHeld = (isHeld: boolean) => {
     this.touchClimbUpHeld = isHeld;
+  };
+
+  private readonly onTouchClimbDownHeld = (isHeld: boolean) => {
+    this.touchClimbDownHeld = isHeld;
   };
 
   private readonly onTouchJump = () => {
@@ -73,6 +81,7 @@ export class GameInputController {
     if (!enabled) {
       this.touchMoveAxisX = 0;
       this.touchClimbUpHeld = false;
+      this.touchClimbDownHeld = false;
       this.touchJumpQueued = false;
       this.touchTrapQueued = false;
       this.touchSkillQueued.clear();
@@ -106,10 +115,13 @@ export class GameInputController {
       this.key3 = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE);
       this.key4 = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.FOUR);
       this.key5 = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.FIVE);
+      this.key6 = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SIX);
+      this.rKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
     }
 
     this.gameEvents.on('controls:move', this.onTouchMove);
     this.gameEvents.on('controls:climb-held', this.onTouchClimbHeld);
+    this.gameEvents.on('controls:climb-down-held', this.onTouchClimbDownHeld);
     this.gameEvents.on('controls:jump', this.onTouchJump);
     this.gameEvents.on('controls:attack-held', this.onTouchAttackHeld);
     this.gameEvents.on('controls:trap', this.onTouchTrap);
@@ -124,12 +136,14 @@ export class GameInputController {
     const resolvedKeyboardMoveX = Phaser.Math.Clamp(keyboardMoveX, -1, 1);
 
     const keyboardClimbUpHeld = this.isKeyDown(this.cursors?.up) || this.isKeyDown(this.wasd?.W);
+    const keyboardClimbDownHeld = this.isKeyDown(this.cursors?.down) || this.isKeyDown(this.wasd?.S);
     const keyboardJumpJustPressed = this.isJustDown(this.cursors?.up) || this.isJustDown(this.wasd?.W);
     const keyboardAttackJustPressed = this.isJustDown(this.spaceKey);
     const keyboardTrapJustPressed = this.isJustDown(this.eKey);
 
     this.moveAxisX = resolvedKeyboardMoveX !== 0 ? resolvedKeyboardMoveX : this.touchMoveAxisX;
     this.climbUpHeld = keyboardClimbUpHeld || this.touchClimbUpHeld;
+    this.climbDownHeld = keyboardClimbDownHeld || this.touchClimbDownHeld;
     this.jumpJustPressed = keyboardJumpJustPressed || this.touchJumpQueued;
     this.attackJustPressed = keyboardAttackJustPressed || this.touchAttackQueued;
     this.trapJustPressed = keyboardTrapJustPressed || this.touchTrapQueued;
@@ -140,6 +154,7 @@ export class GameInputController {
       3: this.isJustDown(this.key3) || this.touchSkillQueued.has(3),
       4: this.isJustDown(this.key4) || this.touchSkillQueued.has(4),
       5: this.isJustDown(this.key5) || this.touchSkillQueued.has(5),
+      6: this.isJustDown(this.key6) || this.isJustDown(this.rKey) || this.touchSkillQueued.has(6),
     };
 
     if (!this.attackJustPressed && this.touchAttackHeld) {
@@ -168,6 +183,10 @@ export class GameInputController {
     return this.climbUpHeld;
   }
 
+  isClimbDownHeld(): boolean {
+    return this.climbDownHeld;
+  }
+
   isJumpJustPressed(): boolean {
     return this.jumpJustPressed;
   }
@@ -187,6 +206,7 @@ export class GameInputController {
   destroy(): void {
     this.gameEvents.off('controls:move', this.onTouchMove);
     this.gameEvents.off('controls:climb-held', this.onTouchClimbHeld);
+    this.gameEvents.off('controls:climb-down-held', this.onTouchClimbDownHeld);
     this.gameEvents.off('controls:jump', this.onTouchJump);
     this.gameEvents.off('controls:attack-held', this.onTouchAttackHeld);
     this.gameEvents.off('controls:trap', this.onTouchTrap);

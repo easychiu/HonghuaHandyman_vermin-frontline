@@ -40,6 +40,20 @@ export class Human extends Phaser.Physics.Arcade.Sprite {
     this.setVelocityY(-200);
     
     console.warn('人類受到驚嚇！國王聲望 -1');
+
+    const excl = this.scene.add.text(this.x, this.y - 30, '❗', {
+      fontSize: '20px',
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(100);
+
+    this.scene.tweens.add({
+      targets: excl,
+      y: this.y - 55,
+      alpha: 0,
+      duration: 800,
+      ease: 'Quad.easeOut',
+      onComplete: () => excl.destroy(),
+    });
   }
 
   despawn(): void {
