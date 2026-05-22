@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS } from '../config/sceneKeys';
+import { AudioSystem } from '../systems/AudioSystem';
 
 export class IntroScene extends Phaser.Scene {
   private videoEl?: HTMLVideoElement;
@@ -43,6 +44,7 @@ export class IntroScene extends Phaser.Scene {
     });
 
     this.input.once('pointerdown', () => {
+      AudioSystem.playClick();
       this.playVideo();
     });
 
@@ -50,6 +52,7 @@ export class IntroScene extends Phaser.Scene {
     const handleKey = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.code === 'Enter') {
         this.input.keyboard?.off('keydown', handleKey);
+        AudioSystem.playClick();
         this.playVideo();
       }
     };
@@ -122,6 +125,7 @@ export class IntroScene extends Phaser.Scene {
     };
 
     skipBtn.onclick = () => {
+      AudioSystem.playClick();
       this.transitionToNextScene();
     };
 

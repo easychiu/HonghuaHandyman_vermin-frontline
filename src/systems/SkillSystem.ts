@@ -3,6 +3,7 @@ import { GAME_BALANCE } from '../config/gameBalance';
 import { Player } from '../entities/Player';
 import { Rat } from '../entities/Rat';
 import { AnzoAgent } from '../entities/AnzoAgent';
+import { AudioSystem } from './AudioSystem';
 
 export type SkillType = 'qingZai' | 'shuangZi' | 'hongHui' | 'shiHui' | 'baoYe' | 'anzo';
 
@@ -23,7 +24,7 @@ export class SkillSystem {
     private readonly scene: Phaser.Scene,
     private readonly player: Player,
     private readonly getActiveRats: () => Rat[],
-    private readonly onRatKilled: (_combo: number) => void,
+    private readonly onRatKilled: (rat: Rat, comboCount: number) => void,
   ) {
     this.uses = {
       qingZai:  GAME_BALANCE.skills.qingZai.uses,
@@ -39,21 +40,60 @@ export class SkillSystem {
     return this.uses;
   }
 
+  public refillSkills(): void {
+    this.uses = {
+      qingZai:  GAME_BALANCE.skills.qingZai.uses,
+      shuangZi: GAME_BALANCE.skills.shuangZi.uses,
+      hongHui:  GAME_BALANCE.skills.hongHui.uses,
+      shiHui:   (GAME_BALANCE.skills as any).shiHui?.uses ?? 1,
+      baoYe:    GAME_BALANCE.skills.baoYe.uses,
+      anzo:     GAME_BALANCE.skills.anzo.uses,
+    };
+  }
+
+  public triggerGoldenExplosion(x: number, y: number, radius: number, damage: number): void {
+    this.showShockwaveExplosion(x, y, radius, 0xffd700, 0xfb8500, 3);
+    
+    const rats = this.getActiveRats();
+    rats.forEach((rat) => {
+      if (Phaser.Math.Distance.Between(x, y, rat.x, rat.y) <= radius) {
+        const wasActive = rat.active;
+        rat.takeDamage(damage);
+        if (wasActive && !rat.active) {
+          this.onRatKilled(rat, 0);
+          
+          if (typeof (this.scene as any).spawnPhysicalCoins === 'function') {
+            (this.scene as any).spawnPhysicalCoins(rat.x, rat.y, 15);
+          }
+          
+          AudioSystem.playGoldenChime();
+          
+          this.scene.time.delayedCall(150, () => {
+            this.triggerGoldenExplosion(rat.x, rat.y, 60, 3);
+          });
+        }
+      }
+    });
+  }
+
   private throwProjectile(
     type: 'qingZai' | 'shuangZi' | 'hongHui' | 'shiHui',
     throwDistance: number,
     onImpact: (impactX: number, impactY: number) => void
   ): void {
     this.player.playThrowAnimation(type);
+    AudioSystem.playSwipe();
     const impact = this.getThrowImpactPosition(throwDistance);
 
+    const isGolden = Math.random() < 0.15;
+
     let tint = 0xffffff;
-    if (type === 'qingZai') tint = 0x88ff44;
+    if (isGolden) tint = 0xffd700;
+    else if (type === 'qingZai') tint = 0x88ff44;
     else if (type === 'shuangZi') tint = 0xffcc44;
     else if (type === 'hongHui') tint = 0xff6600;
     else if (type === 'shiHui') tint = 0x4cc9f0;
 
-    // Lock projectile height to standard ground level corresponding to player layer
     let targetGroundY = GAME_BALANCE.world.surfaceY - 10;
     if (this.player.y > GAME_BALANCE.world.surfaceY + 20) {
       targetGroundY = this.scene.scale.height - 40;
@@ -62,12 +102,11 @@ export class SkillSystem {
 
     const projectile = this.scene.add.sprite(this.player.x, projectileStartY, 'betel_nut').setDepth(30);
     projectile.setTint(tint);
-    projectile.setScale(0.3);
+    projectile.setScale(isGolden ? 0.45 : 0.3);
 
-    // Particle emitter for smoke trail trailing behind
     const trailParticles = this.scene.add.particles(0, 0, 'flame_particle', {
-      scale: { start: 0.6, end: 0.1 },
-      alpha: { start: 0.5, end: 0 },
+      scale: { start: isGolden ? 0.8 : 0.6, end: 0.1 },
+      alpha: { start: 0.6, end: 0 },
       tint: tint,
       speed: { min: 5, max: 15 },
       lifespan: 300,
@@ -76,7 +115,7 @@ export class SkillSystem {
     
     trailParticles.startFollow(projectile);
 
-    const flightTime = 400; // 400ms flight
+    const flightTime = 400;
     this.scene.tweens.add({
       targets: projectile,
       x: impact.x,
@@ -93,7 +132,26 @@ export class SkillSystem {
       onComplete: () => {
         projectile.destroy();
         trailParticles.destroy();
-        onImpact(impact.x, targetGroundY);
+        if (isGolden) {
+          const msg = this.scene.add.text(impact.x, targetGroundY - 35, '黃金爆彈!!', {
+            fontFamily: '"Arial Black", Impact, sans-serif',
+            fontSize: '20px',
+            color: '#ffd700',
+            stroke: '#000000',
+            strokeThickness: 5
+          }).setOrigin(0.5).setDepth(300);
+          this.scene.tweens.add({
+            targets: msg,
+            y: msg.y - 40,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => msg.destroy()
+          });
+
+          this.triggerGoldenExplosion(impact.x, targetGroundY, 110, 5);
+        } else {
+          onImpact(impact.x, targetGroundY);
+        }
       }
     });
   }
@@ -138,7 +196,7 @@ export class SkillSystem {
           const wasActive = rat.active;
           rat.takeDamage(damage);
           if (wasActive && !rat.active) {
-            this.onRatKilled(0);
+            this.onRatKilled(rat, 0);
           } else if (rat.active) {
             rat.applyBurn(burnDamage, burnIntervalMs, burnDurationMs);
           }
@@ -170,6 +228,7 @@ export class SkillSystem {
     const skillConfig = (GAME_BALANCE.skills as any).shiHui;
     const { range, slowFactor, durationMs, throwDistance } = skillConfig;
     this.throwProjectile('shiHui', throwDistance, (x, y) => {
+      AudioSystem.playPlaceTrap();
       const g = this.scene.add.graphics().setDepth(10);
       g.fillStyle(0xaaddff, 0.25);
       g.fillCircle(x, y, range);
@@ -222,6 +281,7 @@ export class SkillSystem {
     const shieldHits = shieldValues[Math.min(Math.max(1, level), shieldValues.length) - 1];
 
     this.player.activateShield(shieldHits, GAME_BALANCE.skills.baoYe.radius);
+    AudioSystem.playShield();
     return true;
   }
 
@@ -235,6 +295,7 @@ export class SkillSystem {
       : GAME_BALANCE.world.surfaceY - 20; 
 
     new AnzoAgent(this.scene, yLevel, this.getActiveRats, this.onRatKilled);
+    AudioSystem.playUpgradeSuccess();
     return true;
   }
 
@@ -260,7 +321,7 @@ export class SkillSystem {
         const wasActive = rat.active;
         rat.takeDamage(damage);
         if (wasActive && !rat.active) {
-          this.onRatKilled();
+          this.onRatKilled(rat, 0);
         }
       }
     });
@@ -271,6 +332,10 @@ export class SkillSystem {
     fillColor: number, strokeColor: number,
     rings: number,
   ): void {
+    AudioSystem.playExplosion();
+    if (typeof (this.scene as any).hazardSystem?.checkExplosionTrigger === 'function') {
+      (this.scene as any).hazardSystem.checkExplosionTrigger(x, y, radius);
+    }
     for (let i = 0; i < rings; i++) {
       const delay = i * 80;
       const g = this.scene.add.graphics().setDepth(20);

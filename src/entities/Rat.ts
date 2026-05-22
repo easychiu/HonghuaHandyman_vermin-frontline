@@ -43,9 +43,14 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.moveSpeed = profile.moveSpeed;
     this.panicThreshold = profile.panicThreshold;
     // Use faction-specific texture instead of tinting the same sprite
-    const textureKey = faction === 'blue' ? 'rat_blue' : 'rat_green';
+    const textureKey = `rat_${faction}`;
     this.setTexture(textureKey);
     this.clearTint();
+    if (faction === 'black') {
+      this.setAlpha(0.55);
+    } else {
+      this.setAlpha(1);
+    }
 
     this.currentDirection = velocityX >= 0 ? 1 : -1;
     this.setVelocityX(this.moveSpeed * this.currentDirection);
@@ -290,6 +295,15 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
   preUpdate(time: number, delta: number): void {
     super.preUpdate(time, delta);
     if (!this.active || !this.body) {
+      return;
+    }
+
+    if (this.state === 'brawl') {
+      this.setVelocity(0, 0);
+      // Violent brawling shake/wiggle
+      this.setAngle(Math.sin(time * 0.1) * 12);
+      this.x += Math.sin(time * 0.2) * 0.8;
+      this.y += Math.cos(time * 0.2) * 0.8;
       return;
     }
 

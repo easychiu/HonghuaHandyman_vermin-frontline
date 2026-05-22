@@ -22,21 +22,47 @@ export class RatSpawnerSystem {
     const selectedMission = this.config.scene.registry.get('selectedMission') as { spawnRateMult?: number } | undefined;
     const mult = selectedMission?.spawnRateMult ?? 1.0;
 
-    // 綠鼠：從右側傳送門生成，往左跑
+    // 綠、紅、黃、白、橘老鼠：從右側傳送門生成，往左跑
     this.autoSpawnTimerGreen = this.config.scene.time.addEvent({
       delay: GAME_BALANCE.rat.spawnIntervalMs / mult,
       callback: () => {
-        this.spawn('green', this.config.portalX, this.config.portalY, Phaser.Math.Between(-160, -70));
+        const roll = Math.random();
+        let faction: RatFaction = 'green';
+        if (roll < 0.60) {
+          faction = 'green';
+        } else if (roll < 0.80) {
+          faction = 'red';
+        } else if (roll < 0.90) {
+          faction = 'yellow';
+        } else if (roll < 0.95) {
+          faction = 'white';
+        } else {
+          faction = 'orange';
+        }
+        this.spawn(faction, this.config.portalX, this.config.portalY, Phaser.Math.Between(-160, -70));
       },
       callbackScope: this,
       loop: true,
     });
 
-    // 藍鼠：從地下左側生成，往右跑
+    // 藍、紫、黑、青、橘老鼠：從地下左側生成，往右跑
     this.autoSpawnTimerBlue = this.config.scene.time.addEvent({
       delay: GAME_BALANCE.rat.blueSpawnIntervalMs / mult,
       callback: () => {
-        this.spawn('blue', 40, this.config.portalY, Phaser.Math.Between(70, 160));
+        const roll = Math.random();
+        let faction: RatFaction = 'blue';
+        if (roll < 0.50) {
+          faction = 'blue';
+        } else if (roll < 0.70) {
+          faction = 'purple';
+        } else if (roll < 0.85) {
+          faction = 'black';
+        } else if (roll < 0.95) {
+          faction = 'cyan';
+        } else {
+          faction = 'orange';
+        }
+        this.spawn(faction, 40, this.config.portalY, Phaser.Math.Between(70, 160));
       },
       callbackScope: this,
       loop: true,
@@ -44,7 +70,35 @@ export class RatSpawnerSystem {
   }
 
   spawnByPointer(pointer: Phaser.Input.Pointer): void {
-    const faction: RatFaction = pointer.y > this.config.surfaceY ? 'blue' : 'green';
+    const isSewer = pointer.y > this.config.surfaceY;
+    let faction: RatFaction = 'green';
+    if (isSewer) {
+      const roll = Math.random();
+      if (roll < 0.50) {
+        faction = 'blue';
+      } else if (roll < 0.70) {
+        faction = 'purple';
+      } else if (roll < 0.85) {
+        faction = 'black';
+      } else if (roll < 0.95) {
+        faction = 'cyan';
+      } else {
+        faction = 'orange';
+      }
+    } else {
+      const roll = Math.random();
+      if (roll < 0.60) {
+        faction = 'green';
+      } else if (roll < 0.80) {
+        faction = 'red';
+      } else if (roll < 0.90) {
+        faction = 'yellow';
+      } else if (roll < 0.95) {
+        faction = 'white';
+      } else {
+        faction = 'orange';
+      }
+    }
     this.spawn(faction, pointer.x, pointer.y, Phaser.Math.Between(-150, 150));
   }
 
@@ -55,8 +109,9 @@ export class RatSpawnerSystem {
     this.autoSpawnTimerBlue = undefined;
   }
 
-  private spawn(faction: RatFaction, x: number, y: number, velocityX: number): void {
-    const pool = faction === 'green' ? this.config.greenRatPool : this.config.blueRatPool;
+  public spawn(faction: RatFaction, x: number, y: number, velocityX: number): void {
+    const isSurface = faction === 'green' || faction === 'red' || faction === 'yellow' || faction === 'white' || (faction === 'orange' && y <= this.config.surfaceY);
+    const pool = isSurface ? this.config.greenRatPool : this.config.blueRatPool;
     const rat = pool.get() as Rat | null;
 
     if (!rat) {

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS } from '../config/sceneKeys';
 import { defaultHudState, HudState } from '../ui/hud';
+import { AudioSystem } from '../systems/AudioSystem';
 
 export class UIScene extends Phaser.Scene {
   private static readonly CLIMB_THRESHOLD_RATIO = 0.45;
@@ -115,6 +116,7 @@ export class UIScene extends Phaser.Scene {
       .setOrigin(1, 0)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => {
+        AudioSystem.playClick();
         this.touchControlsVisible = !this.touchControlsVisible;
         this.applyTouchControlVisibility(this.touchControlsVisible);
         this.game.events.emit('controls:touch-ui-enabled', this.touchControlsVisible);
@@ -168,9 +170,19 @@ export class UIScene extends Phaser.Scene {
     const maxOxygen = Math.round(Number(this.registry.get('playerMaxOxygen') ?? 100));
     const oxygenStr = oxygen < maxOxygen ? `  💧氧氣: ${oxygen}%` : '';
 
+    const speedBoostTimeLeft = Number(this.registry.get('speedBoostTimeLeft') ?? 0);
+    const magnetTimeLeft = Number(this.registry.get('magnetTimeLeft') ?? 0);
+    let buffStr = '';
+    if (speedBoostTimeLeft > 0) {
+      buffStr += `\n⚡ 爆發: ${speedBoostTimeLeft.toFixed(1)}s`;
+    }
+    if (magnetTimeLeft > 0) {
+      buffStr += `\n🧲 磁鐵: ${magnetTimeLeft.toFixed(1)}s`;
+    }
+
     const hearts = '❤'.repeat(hud.playerHp) + '🖤'.repeat(Math.max(0, hud.playerMaxHp - hud.playerHp));
     this.topLeftText?.setText(
-      `HP: ${hud.playerHp}/${hud.playerMaxHp}  ${hearts}${oxygenStr}\n評分: ${hud.score}\n擊殺: ${hud.kills}\n嚇跑人數: ${hud.scaredHumans}\n倒數: ${hud.timeLeft}s`,
+      `HP: ${hud.playerHp}/${hud.playerMaxHp}  ${hearts}${oxygenStr}\n評分: ${hud.score}\n擊殺: ${hud.kills}\n嚇跑人數: ${hud.scaredHumans}\n倒數: ${hud.timeLeft}s${buffStr}`,
     );
 
     // Boss warning
@@ -464,6 +476,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   private showVictoryScreen(hud: HudState): void {
+    AudioSystem.stopBgm();
+    AudioSystem.playVictory();
     this.screenOverlayActive = true;
     this.cleanupTouchControls();
     this.applyTouchControlVisibility(false);
@@ -593,6 +607,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   private showGameOverScreen(): void {
+    AudioSystem.stopBgm();
+    AudioSystem.playGameOver();
     this.screenOverlayActive = true;
     this.cleanupTouchControls();
     this.applyTouchControlVisibility(false);
@@ -633,6 +649,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   private restartGame(): void {
+    AudioSystem.playClick();
     // Reset level-specific registry keys
     this.registry.set('reputationScore', 0);
     this.registry.set('ratKills', 0);

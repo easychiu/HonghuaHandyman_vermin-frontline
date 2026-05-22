@@ -6,7 +6,7 @@ export class AnzoAgent {
   private scene: Phaser.Scene;
   private yLevel: number;
   private getActiveRats: () => Rat[];
-  private onRatKilled: () => void;
+  private onRatKilled: (rat: Rat, comboCount: number) => void;
 
   private policeCarRight?: Phaser.Physics.Arcade.Sprite;
   private policeCarLeft?: Phaser.Physics.Arcade.Sprite;
@@ -22,7 +22,7 @@ export class AnzoAgent {
   private sirenTimerRight?: Phaser.Time.TimerEvent;
   private sirenTimerLeft?: Phaser.Time.TimerEvent;
 
-  constructor(scene: Phaser.Scene, yLevel: number, getActiveRats: () => Rat[], onRatKilled: () => void) {
+  constructor(scene: Phaser.Scene, yLevel: number, getActiveRats: () => Rat[], onRatKilled: (rat: Rat, comboCount: number) => void) {
     this.scene = scene;
     this.yLevel = yLevel;
     this.getActiveRats = getActiveRats;
@@ -184,12 +184,11 @@ export class AnzoAgent {
         this.scene.time.delayedCall(200, () => {
           if (rat.active) {
             rat.clearTint();
-            rat.setTint(GAME_BALANCE.rat.profiles[rat.faction].tint);
           }
         });
 
         if (wasActive && !rat.active) {
-          this.onRatKilled();
+          this.onRatKilled(rat, 0);
         }
       }
     });

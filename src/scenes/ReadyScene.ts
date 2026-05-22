@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS } from '../config/sceneKeys';
+import { AudioSystem } from '../systems/AudioSystem';
 
 export class ReadyScene extends Phaser.Scene {
   private particles: Array<{
@@ -13,6 +14,9 @@ export class ReadyScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Start Ready Scene BGM (funny)
+    AudioSystem.playBgm(this, 'bgm_funny');
+
     const { width, height } = this.scale;
 
     // Set background color to dark tech color (#090d16)
@@ -149,6 +153,7 @@ export class ReadyScene extends Phaser.Scene {
         return;
       }
       started = true;
+      AudioSystem.playClick();
 
       this.input.keyboard?.off('keydown', onKeyboardStart);
 

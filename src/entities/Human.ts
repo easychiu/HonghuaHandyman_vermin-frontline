@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AudioSystem } from '../systems/AudioSystem';
 
 export class Human extends Phaser.Physics.Arcade.Sprite {
   private moveSpeed = 50; // 人類平常散步速度很慢
@@ -45,6 +46,7 @@ export class Human extends Phaser.Physics.Arcade.Sprite {
     if (this.isPanicking) return; // 如果已經在害怕了就不重複觸發
     
     this.isPanicking = true;
+    AudioSystem.playHumanPanic();
     this.moveSpeed = 200; // 嚇到拔腿狂奔
     this.setTint(0xf4a261); // 變成驚恐的橘黃色
     

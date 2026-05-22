@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
 import { Trap, TrapType } from '../entities/Trap';
+import { AudioSystem } from './AudioSystem';
 
 export class TrapSystem {
   public currentTrapType: TrapType = 'bear_trap';
@@ -28,6 +29,7 @@ export class TrapSystem {
     const nextIndex = (currentIndex + 1) % this.trapOrder.length;
     this.currentTrapType = this.trapOrder[nextIndex];
     this.scene.registry.set('currentTrapType', this.currentTrapType);
+    AudioSystem.playClick();
   }
 
   placeTrap(): void {
@@ -71,6 +73,7 @@ export class TrapSystem {
     const placeY = this.player.y + (this.player.displayHeight / 2) - (trapHeight / 2);
 
     trap.spawn(placeX, placeY, this.currentTrapType);
+    AudioSystem.playPlaceTrap();
     this.lastPlaceTime = now;
   }
 }

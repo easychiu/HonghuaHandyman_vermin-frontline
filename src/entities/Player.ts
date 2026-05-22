@@ -8,6 +8,7 @@ import {
 } from '../animations/honghuaAnimations';
 import { GAME_BALANCE } from '../config/gameBalance';
 import { GameInputController } from '../input/GameInputController';
+import { AudioSystem } from '../systems/AudioSystem';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   private static readonly IDLE_FALLBACK_TIMEOUT_MS = 2000;
@@ -16,6 +17,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   
   private speed = 250; 
   private jumpForce = -500;
+  private speedMultiplier = 1;
+  private speedBoostTimer?: Phaser.Time.TimerEvent;
+  private speedBoostEndTime = 0;
 
   // --- Coyote Time 相關變數 ---
   private coyoteTime = 150; // 允許離開平台後還能起跳的寬容時間 (毫秒)
@@ -87,12 +91,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       }
       this.playHurtAnimation();
       this.startInvincibility();
+      AudioSystem.playShield();
       return;
     }
 
     this.hp = Math.max(0, this.hp - amount);
     this.playHurtAnimation();
     this.startInvincibility();
+    AudioSystem.playPlayerHurt();
   }
 
   private startInvincibility(): void {
@@ -140,6 +146,43 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return this.hp > 0;
   }
 
+  public heal(amount: number): void {
+    if (!this.active || !this.isAlive()) return;
+    this.hp = Math.min(this.maxHp, this.hp + amount);
+    
+    // Green healing flash feedback
+    this.scene.tweens.add({
+      targets: this,
+      tint: 0x44ff44,
+      duration: 150,
+      yoyo: true,
+      onComplete: () => {
+        if (this.active) {
+          this.tint = this.speedMultiplier > 1 ? 0xffff44 : 0xffffff;
+          if (this.speedMultiplier <= 1) this.clearTint();
+        }
+      }
+    });
+  }
+
+  public boostSpeed(multiplier: number, durationMs: number): void {
+    if (!this.active) return;
+    this.speedMultiplier = multiplier;
+    this.speedBoostEndTime = this.scene.time.now + durationMs;
+    this.setTint(0xffff44);
+    
+    this.speedBoostTimer?.remove();
+    this.speedBoostTimer = this.scene.time.delayedCall(durationMs, () => {
+      this.speedMultiplier = 1;
+      this.clearTint();
+    });
+  }
+
+  public getSpeedBoostTimeLeft(): number {
+    if (this.speedMultiplier <= 1) return 0;
+    return Math.max(0, (this.speedBoostEndTime - this.scene.time.now) / 1000);
+  }
+
   // 接收 scene 傳來的 delta (兩幀之間相差的毫秒數)
   update(delta: number): void {
     if (!this.body) return;
@@ -161,17 +204,33 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.lastInteractionAt = this.scene.time.now;
     }
     if (moveAxisX < -0.1) {
-      this.setVelocityX(-this.speed);
+      this.setVelocityX(-this.speed * this.speedMultiplier);
       this.facingDirection = -1;
       this.lastFacing = 'left';
       this.setFlipX(true);
     } else if (moveAxisX > 0.1) {
-      this.setVelocityX(this.speed);
+      this.setVelocityX(this.speed * this.speedMultiplier);
       this.facingDirection = 1;
       this.lastFacing = 'right';
       this.setFlipX(false);
     } else {
       this.setVelocityX(0);
+    }
+
+    if (this.speedMultiplier > 1 && this.scene.time.now % 4 === 0) {
+      const ghost = this.scene.add.sprite(this.x, this.y, this.texture.key, this.frame.name)
+        .setScale(this.scaleX, this.scaleY)
+        .setFlipX(this.flipX)
+        .setAlpha(0.4)
+        .setTint(0xffff44)
+        .setDepth(this.depth - 1);
+      
+      this.scene.tweens.add({
+        targets: ghost,
+        alpha: 0,
+        duration: 300,
+        onComplete: () => ghost.destroy(),
+      });
     }
 
     // ==========================================

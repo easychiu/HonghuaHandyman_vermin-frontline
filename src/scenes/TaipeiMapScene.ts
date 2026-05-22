@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS } from '../config/sceneKeys';
+import { AudioSystem } from '../systems/AudioSystem';
 
 /**
  * TaipeiMapScene — 台北大地圖選關場景
@@ -109,6 +110,9 @@ export class TaipeiMapScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Start Taipei Map BGM (fun)
+    AudioSystem.playBgm(this, 'bgm_fun');
+
     const { width, height } = this.scale;
 
     // Restore previously selected mission if any
@@ -168,6 +172,7 @@ export class TaipeiMapScene extends Phaser.Scene {
     backBtn.on('pointerover', () => backBtn.setColor('#ffffff'));
     backBtn.on('pointerout', () => backBtn.setColor('#94a3b8'));
     backBtn.on('pointerdown', () => {
+      AudioSystem.playClick();
       this.cameras.main.fadeOut(300, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
         this.scene.stop();
@@ -281,6 +286,7 @@ export class TaipeiMapScene extends Phaser.Scene {
   }
 
   private selectPin(pin: MissionPin): void {
+    AudioSystem.playClick();
     this.selectedPin = pin;
 
     // Redraw all pins to update selected state
@@ -454,6 +460,7 @@ export class TaipeiMapScene extends Phaser.Scene {
   }
 
   private startMission(): void {
+    AudioSystem.playClick();
     const pin = this.selectedPin;
 
     this.registry.set('selectedMission', {

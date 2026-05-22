@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS } from '../config/sceneKeys';
+import { AudioSystem } from '../systems/AudioSystem';
 
 interface Mission {
   id: 'A' | 'B' | 'C';
@@ -142,6 +143,9 @@ export class YorozuyaLobbyScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Start Lobby BGM (funny)
+    AudioSystem.playBgm(this, 'bgm_funny');
+
     const { width, height } = this.scale;
 
     // Background color
@@ -321,6 +325,7 @@ export class YorozuyaLobbyScene extends Phaser.Scene {
     btnHit.on('pointerover', () => { drawBtn(true); btnTxt.setScale(1.05); });
     btnHit.on('pointerout', () => { drawBtn(false); btnTxt.setScale(1); });
     btnHit.on('pointerdown', () => {
+      AudioSystem.playClick();
       this.cameras.main.fadeOut(300, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
         this.scene.start(SCENE_KEYS.taipeiMap);
@@ -440,6 +445,7 @@ export class YorozuyaLobbyScene extends Phaser.Scene {
       const hitArea = this.add.zone(x + 20 + (w - 40) / 2, btnY + 23, w - 40, 46);
       hitArea.setInteractive({ useHandCursor: true });
       hitArea.on('pointerdown', () => {
+        AudioSystem.playClick();
         this.selectedMissionId = m.id;
         this.registry.set('selectedMission', m);
         
@@ -488,6 +494,7 @@ export class YorozuyaLobbyScene extends Phaser.Scene {
     const startHit = this.add.zone(x + 20 + (w - 40) / 2, y + 355 + 22, w - 40, 45);
     startHit.setInteractive({ useHandCursor: true });
     startHit.on('pointerdown', () => {
+      AudioSystem.playClick();
       startBtn.fillStyle(0x05b88a, 0.95);
       startBtnText.setScale(0.95);
       
@@ -589,6 +596,8 @@ export class YorozuyaLobbyScene extends Phaser.Scene {
 
             this.registry.set('persistent_gold', newGold);
             this.registry.set('upgrades', upgrades);
+
+            AudioSystem.playUpgradeSuccess();
 
             // Audio-visual feedback
             this.cameras.main.flash(200, 168, 85, 247, true);
