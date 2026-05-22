@@ -36,6 +36,7 @@ export class MainGameScene extends Phaser.Scene {
   private inputController!: GameInputController;
   private debugPointerSpawnEnabled = false;
   private lastOxygenDamageTime?: number;
+  private gameStarted = false; // blocked during countdown
 
   constructor() {
     super(SCENE_KEYS.mainGame);
@@ -116,7 +117,7 @@ export class MainGameScene extends Phaser.Scene {
       greenRatPool: this.greenRatPool,
       blueRatPool: this.blueRatPool,
       trapPool: this.trapPool,
-      onRatKilled: () => this.reputationSystem.recordRatKill(GAME_BALANCE.reputation.ratKillReward),
+      onRatKilled: (_combo) => this.reputationSystem.recordRatKill(GAME_BALANCE.reputation.ratKillReward),
     });
 
     this.trapSystem = new TrapSystem(this, this.trapPool, this.player);
@@ -125,7 +126,7 @@ export class MainGameScene extends Phaser.Scene {
       this,
       this.player,
       () => this.getActiveRats(),
-      () => this.reputationSystem.recordRatKill(GAME_BALANCE.reputation.ratKillReward),
+      (_combo) => this.reputationSystem.recordRatKill(GAME_BALANCE.reputation.ratKillReward),
     );
     // 初始化技能使用次數到 registry
     this.registry.set('skillUses', { ...this.skillSystem.getRemainingUses() });
@@ -150,7 +151,7 @@ export class MainGameScene extends Phaser.Scene {
       pipeX: pipe.x,
       surfaceY: GAME_BALANCE.world.surfaceY,
     });
-    this.ratSpawnerSystem.startAutoSpawn();
+    // Note: startAutoSpawn() is called from showCountdownThenStart() after GO!!
 
     this.bossController = new BossEventController({
       scene: this,
@@ -170,6 +171,9 @@ export class MainGameScene extends Phaser.Scene {
       scene: this,
       durationSeconds: levelDuration,
       onTick: (timeLeft) => {
+        if (timeLeft <= GAME_BALANCE.level.bossTriggerTimeLeftSeconds + 5 && !this.registry.get('bossImminent')) {
+          this.registry.set('bossImminent', true);
+        }
         if (timeLeft <= GAME_BALANCE.level.bossTriggerTimeLeftSeconds) {
           triggerBossRush();
         }
@@ -181,11 +185,15 @@ export class MainGameScene extends Phaser.Scene {
         this.physics.pause();
       },
     });
-    this.levelTimerSystem.start();
+    // Note: levelTimerSystem.start() is called from showCountdownThenStart() after GO!!
 
     if (!this.scene.isActive(SCENE_KEYS.ui)) {
       this.scene.launch(SCENE_KEYS.ui);
     }
+
+    // Countdown before game starts
+    this.gameStarted = false;
+    this.showCountdownThenStart();
 
     this.debugPointerSpawnEnabled = new URLSearchParams(window.location.search).get('debugSpawn') === '1';
     this.registry.set('debugPointerSpawnEnabled', this.debugPointerSpawnEnabled);
@@ -205,6 +213,9 @@ export class MainGameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    // Block all updates during countdown
+    if (!this.gameStarted) return;
+
     const gameStatus = this.registry.get('gameStatus');
     if (gameStatus === 'victory' || gameStatus === 'gameover') {
       return;
@@ -220,6 +231,10 @@ export class MainGameScene extends Phaser.Scene {
     }
 
     this.registry.set('remainingRats', this.getActiveRats().length);
+
+    // Count rats on surface layer for crisis alert
+    const surfaceRats = this.getActiveRats().filter(r => r.y < GAME_BALANCE.world.surfaceY + 20);
+    this.registry.set('surfaceRatCount', surfaceRats.length);
 
     this.inputController.update();
     this.player.update(delta);
@@ -404,6 +419,77 @@ export class MainGameScene extends Phaser.Scene {
 
     const human2 = this.humanPool.get() as Human | null;
     human2?.spawn(760, 200);
+  }
+
+  /**
+   * 3-2-1 倒數動畫，結束後才真正開始遊戲（啟動spawner/timer）
+   */
+  private showCountdownThenStart(): void {
+    const { width, height } = this.scale;
+    const overlay = this.add.graphics().setDepth(900);
+    overlay.fillStyle(0x000000, 0.4);
+    overlay.fillRect(0, 0, width, height);
+
+    const countStyle = {
+      fontFamily: '"Arial Black", Impact, sans-serif',
+      fontSize: '120px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 10,
+      shadow: { color: '#ffd166', fill: true, offsetX: 0, offsetY: 0, blur: 40 },
+    };
+    const countText = this.add.text(width / 2, height / 2, '3', countStyle)
+      .setOrigin(0.5)
+      .setDepth(910)
+      .setScale(2);
+
+    const missionName = this.registry.get('selectedMission')?.name ?? '任務開始';
+    const subText = this.add.text(width / 2, height / 2 + 100, missionName, {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '28px',
+      color: '#ffd166',
+      stroke: '#000000',
+      strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(910);
+
+    const steps = ['3', '2', '1', 'GO!!'];
+    const colors = ['#ffffff', '#ffdd44', '#ff9f1c', '#ff3333'];
+    let step = 0;
+
+    const doStep = () => {
+      if (step >= steps.length) {
+        this.tweens.add({
+          targets: [countText, subText, overlay],
+          alpha: 0,
+          duration: 400,
+          onComplete: () => {
+            countText.destroy();
+            subText.destroy();
+            overlay.destroy();
+          },
+        });
+        // Actually start the game
+        this.ratSpawnerSystem.startAutoSpawn();
+        this.levelTimerSystem.start();
+        this.gameStarted = true;
+        return;
+      }
+
+      countText.setText(steps[step]).setColor(colors[step]).setScale(2.0).setAlpha(1);
+      this.tweens.add({
+        targets: countText,
+        scale: 1.0,
+        alpha: step < steps.length - 1 ? 0.3 : 1,
+        duration: step < steps.length - 1 ? 800 : 600,
+        ease: 'Power2',
+        onComplete: () => {
+          step++;
+          doStep();
+        },
+      });
+    };
+
+    doStep();
   }
 
   private createPortal(portalX: number, portalY: number): void {

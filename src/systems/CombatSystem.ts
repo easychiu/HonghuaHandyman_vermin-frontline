@@ -10,18 +10,39 @@ interface CombatSystemConfig {
   greenRatPool: Phaser.Physics.Arcade.Group;
   blueRatPool: Phaser.Physics.Arcade.Group;
   trapPool: Phaser.Physics.Arcade.Group;
-  onRatKilled: () => void;
+  onRatKilled: (comboCount: number) => void;
 }
+
+type DamageSource = 'player' | 'trap' | 'brawl' | 'skill';
+
 
 export class CombatSystem {
   private readonly scene: Phaser.Scene;
   private readonly player: Player;
-  private readonly onRatKilled: () => void;
+  private readonly onRatKilled: (comboCount: number) => void;
+  private comboCount = 0;
+  private comboTimer?: Phaser.Time.TimerEvent;
+  private comboText?: Phaser.GameObjects.Text;
+  private readonly COMBO_TIMEOUT_MS = 2000;
 
   constructor(config: CombatSystemConfig) {
     this.scene = config.scene;
     this.player = config.player;
     this.onRatKilled = config.onRatKilled;
+
+    // Combo counter display text
+    const { width } = this.scene.scale;
+    this.comboText = this.scene.add
+      .text(width / 2, 80, '', {
+        fontFamily: '"Arial Black", Impact, sans-serif',
+        fontSize: '40px',
+        color: '#ffd166',
+        stroke: '#000000',
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setDepth(500)
+      .setAlpha(0);
 
     this.scene.physics.add.overlap(config.greenRatPool, config.blueRatPool, this.handleRatBrawl, undefined, this);
     // Add physics collider for barricades (so rats cannot pass through them)
@@ -44,10 +65,18 @@ export class CombatSystem {
 
     const attackY = this.player.y - 24;
 
-    const slash = this.scene.add.graphics();
-    slash.fillStyle(0xffd166, 0.8);
+    // Slash arc visual
+    const slash = this.scene.add.graphics().setDepth(50);
+    slash.fillStyle(0xffd166, 0.75);
     slash.fillRect(attackX, attackY, playerAttackRange, playerAttackHeight);
-    this.scene.time.delayedCall(80, () => slash.destroy());
+    slash.lineStyle(2, 0xffffff, 0.9);
+    slash.strokeRect(attackX, attackY, playerAttackRange, playerAttackHeight);
+    this.scene.tweens.add({
+      targets: slash,
+      alpha: 0,
+      duration: 120,
+      onComplete: () => slash.destroy(),
+    });
 
     const upgrades = this.scene.registry.get('upgrades') as { broomDamage?: number } | undefined;
     const level = upgrades?.broomDamage ?? 1;
@@ -62,7 +91,7 @@ export class CombatSystem {
         return;
       }
 
-      this.applyDamage(entity, damage);
+      this.applyDamage(entity, damage, 'player');
     });
   }
 
@@ -81,8 +110,8 @@ export class CombatSystem {
       return;
     }
 
-    this.applyDamage(rat1, 1);
-    this.applyDamage(rat2, 1);
+    this.applyDamage(rat1, 1, 'brawl');
+    this.applyDamage(rat2, 1, 'brawl');
   }
 
   private shouldCollideWithTrap(
@@ -153,14 +182,14 @@ export class CombatSystem {
       const trapValues = [2.0, 3.5, 5.0];
       const damage = trapValues[Math.min(Math.max(1, level), trapValues.length) - 1];
 
-      this.applyDamage(rat, damage);
+      this.applyDamage(rat, damage, 'trap');
       trap.despawn();
     } else if (trap.trapType === 'bait_cheese') {
       if (!rat.isChewing) {
         rat.isChewing = true;
         rat.setVelocity(0, 0);
 
-        this.applyDamage(rat, 0.5); // bait_cheese poison damage: 0.5
+        this.applyDamage(rat, 0.5, 'trap');
         trap.takeDamage(1);
 
         // Chew stun duration: 1.2s
@@ -171,6 +200,35 @@ export class CombatSystem {
         });
       }
     }
+  }
+
+  private showFloatingDamage(x: number, y: number, amount: number, source: DamageSource): void {
+    const colorMap: Record<DamageSource, string> = {
+      player: '#ffd166',
+      trap: '#ff9f1c',
+      brawl: '#ff6b6b',
+      skill: '#a8dadc',
+    };
+    const label = amount >= 1 ? `-${Math.floor(amount)}` : '-½';
+    const txt = this.scene.add
+      .text(x + Phaser.Math.Between(-10, 10), y - 12, label, {
+        fontFamily: '"Arial Black", Impact, sans-serif',
+        fontSize: amount >= 3 ? '22px' : '16px',
+        color: colorMap[source],
+        stroke: '#000000',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(300);
+
+    this.scene.tweens.add({
+      targets: txt,
+      y: txt.y - 40,
+      alpha: 0,
+      duration: 700,
+      ease: 'Power2',
+      onComplete: () => txt.destroy(),
+    });
   }
 
   private showHitEffect(x: number, y: number, color: number): void {
@@ -209,16 +267,68 @@ export class CombatSystem {
     });
   }
 
-  private applyDamage(rat: Rat, amount: number): void {
+  private registerKill(): void {
+    this.comboCount++;
+    this.comboTimer?.remove();
+    this.comboTimer = this.scene.time.delayedCall(this.COMBO_TIMEOUT_MS, () => {
+      this.comboCount = 0;
+      this.comboText?.setAlpha(0);
+    });
+
+    if (this.comboCount >= 2 && this.comboText) {
+      let label = '';
+      let color = '#ffffff';
+      let scale = 1.0;
+
+      if (this.comboCount >= 8) {
+        label = `🔥 FEVER!! ×${this.comboCount}`;
+        color = '#ff3333';
+        scale = 1.3;
+      } else if (this.comboCount >= 5) {
+        label = `⚡ HOT!! ×${this.comboCount}`;
+        color = '#ff9f1c';
+        scale = 1.15;
+      } else if (this.comboCount >= 3) {
+        label = `✨ COMBO ×${this.comboCount}`;
+        color = '#ffd166';
+        scale = 1.0;
+      } else {
+        label = `COMBO ×${this.comboCount}`;
+        color = '#eeeeee';
+        scale = 0.85;
+      }
+
+      this.scene.tweens.killTweensOf(this.comboText);
+      this.comboText.setText(label).setColor(color).setAlpha(1).setScale(scale * 1.5);
+      this.scene.tweens.add({
+        targets: this.comboText,
+        scale,
+        duration: 200,
+        ease: 'Back.Out',
+      });
+      this.scene.tweens.add({
+        targets: this.comboText,
+        alpha: 0,
+        delay: 1200,
+        duration: 400,
+        ease: 'Power2',
+      });
+    }
+
+    this.onRatKilled(this.comboCount);
+  }
+
+  private applyDamage(rat: Rat, amount: number, source: DamageSource = 'player'): void {
     const wasActive = rat.active;
 
     const hitColor = rat.faction === 'green' ? 0x2ec4b6 : 0x00b4d8;
     this.showHitEffect(rat.x, rat.y, hitColor);
+    this.showFloatingDamage(rat.x, rat.y, amount, source);
 
     rat.takeDamage(amount);
 
     if (wasActive && !rat.active) {
-      this.onRatKilled();
+      this.registerKill();
       this.scene.cameras.main.shake(120, 0.005);
     }
   }

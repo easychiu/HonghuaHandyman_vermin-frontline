@@ -201,6 +201,67 @@ export class YorozuyaLobbyScene extends Phaser.Scene {
 
     // Right Panel: Upgrades
     this.createUpgradesPanel(490, 85, 440, 420);
+
+    // Bottom: Mission History Board
+    this.createMissionHistoryPanel(30, 520, width - 60, 80);
+  }
+
+  private createMissionHistoryPanel(x: number, y: number, w: number, h: number): void {
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0f172a, 0.7);
+    bg.lineStyle(1, 0xa855f7, 0.3);
+    bg.fillRoundedRect(x, y, w, h, 8);
+    bg.strokeRoundedRect(x, y, w, h, 8);
+
+    this.add.text(x + 20, y + 10, '📋 過往任務記錄', {
+      color: '#a855f7',
+      fontFamily: '"Outfit", "Inter", "Microsoft JhengHei", Arial, sans-serif',
+      fontSize: '14px',
+      fontWeight: 'bold',
+    });
+
+    const historyRaw = localStorage.getItem('honghua_mission_history') ?? '[]';
+    const history: Array<{ mission: string; evaluation: string; kills: number; gold: number }> =
+      JSON.parse(historyRaw);
+
+    if (history.length === 0) {
+      this.add.text(x + 20, y + 35, '尚無記錄 — 快去接下第一個委託！', {
+        color: '#475569',
+        fontFamily: '"Inter", "Microsoft JhengHei", Arial, sans-serif',
+        fontSize: '13px',
+      });
+      return;
+    }
+
+    const evalColors: Record<string, string> = {
+      S: '#ffd166', A: '#06d6a0', B: '#3b82f6', C: '#94a3b8', F: '#ef4444',
+    };
+
+    history.forEach((rec, i) => {
+      const col = x + 20 + i * (w / 3);
+      const c = evalColors[rec.evaluation] ?? '#ffffff';
+      this.add.text(col, y + 32, `${rec.mission}`, {
+        color: '#cbd5e1',
+        fontFamily: '"Inter", "Microsoft JhengHei", Arial, sans-serif',
+        fontSize: '11px',
+      });
+      this.add.text(col, y + 48, `評價: `, {
+        color: '#94a3b8',
+        fontFamily: '"Inter", Arial, sans-serif',
+        fontSize: '11px',
+      });
+      this.add.text(col + 38, y + 48, rec.evaluation, {
+        color: c,
+        fontFamily: '"Arial Black", sans-serif',
+        fontSize: '12px',
+        fontStyle: 'bold',
+      });
+      this.add.text(col + 62, y + 48, `  擊殺: ${rec.kills}  +${rec.gold}G`, {
+        color: '#94a3b8',
+        fontFamily: '"Inter", Arial, sans-serif',
+        fontSize: '11px',
+      });
+    });
   }
 
   private createCommissionsPanel(x: number, y: number, w: number, h: number): void {

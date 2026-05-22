@@ -23,7 +23,7 @@ export class SkillSystem {
     private readonly scene: Phaser.Scene,
     private readonly player: Player,
     private readonly getActiveRats: () => Rat[],
-    private readonly onRatKilled: () => void,
+    private readonly onRatKilled: (_combo: number) => void,
   ) {
     this.uses = {
       qingZai:  GAME_BALANCE.skills.qingZai.uses,
@@ -105,7 +105,7 @@ export class SkillSystem {
     const { range, damage, throwDistance } = GAME_BALANCE.skills.qingZai;
     this.throwProjectile('qingZai', throwDistance, (x, y) => {
       this.doAoEDamage(x, y, range, damage);
-      this.showExplosion(x, y, range, 0x88ff44, 0x44cc00);
+      this.showShockwaveExplosion(x, y, range, 0x88ff44, 0x44cc00, 2);
     });
     return true;
   }
@@ -117,7 +117,11 @@ export class SkillSystem {
     const { range, damage, throwDistance } = GAME_BALANCE.skills.shuangZi;
     this.throwProjectile('shuangZi', throwDistance, (x, y) => {
       this.doAoEDamage(x, y, range, damage);
-      this.showExplosion(x, y, range, 0xffcc44, 0xff8800);
+      // Twin explosions
+      this.showShockwaveExplosion(x, y, range, 0xffcc44, 0xff8800, 3);
+      this.scene.time.delayedCall(120, () => {
+        this.showShockwaveExplosion(x, y, range * 0.6, 0xffffff, 0xffcc44, 2);
+      });
     });
     return true;
   }
@@ -134,13 +138,26 @@ export class SkillSystem {
           const wasActive = rat.active;
           rat.takeDamage(damage);
           if (wasActive && !rat.active) {
-            this.onRatKilled();
+            this.onRatKilled(0);
           } else if (rat.active) {
             rat.applyBurn(burnDamage, burnIntervalMs, burnDurationMs);
           }
         }
       });
-      this.showExplosion(x, y, range, 0xff6600, 0xff2200);
+      this.showShockwaveExplosion(x, y, range, 0xff6600, 0xff2200, 3);
+      // Linger fire ring
+      const fireRing = this.scene.add.graphics().setDepth(12);
+      fireRing.lineStyle(3, 0xff4400, 0.7);
+      fireRing.strokeCircle(x, y, range * 0.7);
+      this.scene.tweens.add({
+        targets: fireRing,
+        alpha: 0,
+        scaleX: 1.3,
+        scaleY: 1.3,
+        duration: 1200,
+        ease: 'Power2',
+        onComplete: () => fireRing.destroy(),
+      });
     });
     return true;
   }
@@ -249,20 +266,46 @@ export class SkillSystem {
     });
   }
 
-  private showExplosion(x: number, y: number, radius: number, fillColor: number, strokeColor: number): void {
-    const g = this.scene.add.graphics().setDepth(20);
-    g.fillStyle(fillColor, 0.55);
-    g.fillCircle(x, y, radius);
-    g.lineStyle(3, strokeColor, 0.9);
-    g.strokeCircle(x, y, radius);
-
+  private showShockwaveExplosion(
+    x: number, y: number, radius: number,
+    fillColor: number, strokeColor: number,
+    rings: number,
+  ): void {
+    for (let i = 0; i < rings; i++) {
+      const delay = i * 80;
+      const g = this.scene.add.graphics().setDepth(20);
+      this.scene.time.delayedCall(delay, () => {
+        const scale = 1 + i * 0.3;
+        g.fillStyle(fillColor, 0.5 / (i + 1));
+        g.fillCircle(x, y, radius);
+        g.lineStyle(3 - i, strokeColor, 0.9);
+        g.strokeCircle(x, y, radius);
+        this.scene.tweens.add({
+          targets: g,
+          scaleX: scale,
+          scaleY: scale,
+          alpha: 0,
+          duration: 350,
+          ease: 'Power2',
+          onComplete: () => g.destroy(),
+        });
+      });
+    }
+    // Central flash
+    const flash = this.scene.add.graphics().setDepth(25);
+    flash.fillStyle(0xffffff, 0.7);
+    flash.fillCircle(x, y, radius * 0.3);
     this.scene.tweens.add({
-      targets: g,
+      targets: flash,
       alpha: 0,
-      duration: 250,
-      ease: 'Power2',
-      onComplete: () => g.destroy(),
+      duration: 150,
+      onComplete: () => flash.destroy(),
     });
+  }
+
+  /** @deprecated kept for compatibility; use showShockwaveExplosion instead */
+  private showExplosion(x: number, y: number, radius: number, fillColor: number, strokeColor: number): void {
+    this.showShockwaveExplosion(x, y, radius, fillColor, strokeColor, 2);
   }
 
   private getThrowImpactPosition(distance: number): { x: number; y: number } {

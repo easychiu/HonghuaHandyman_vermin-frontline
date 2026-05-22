@@ -9,7 +9,7 @@ export class BootScene extends Phaser.Scene {
 
   preload(): void {
     this.cameras.main.setBackgroundColor('#111111');
-    this.load.spritesheet(HONGHUA_TEXTURE_KEY, 'assets/honghua.png', {
+    this.load.spritesheet(HONGHUA_TEXTURE_KEY, 'assets/honghua2.png', {
       frameWidth: FRAME_WIDTH,
       frameHeight: FRAME_HEIGHT,
     });

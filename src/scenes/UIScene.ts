@@ -14,6 +14,13 @@ export class UIScene extends Phaser.Scene {
   private selectedTrapText?: Phaser.GameObjects.Text;
   private touchToggleText?: Phaser.GameObjects.Text;
 
+  // Crisis alerts
+  private surfaceRatAlert?: Phaser.GameObjects.Text;
+  private timeAlert?: Phaser.GameObjects.Text;
+  private timeAlertPulsing = false;
+  private lastSurfaceRatCount = 0;
+  private bossPrewarned = false;
+
   private touchControlsVisible = false;
   private joystickBase?: Phaser.GameObjects.Arc;
   private joystickKnob?: Phaser.GameObjects.Arc;
@@ -117,6 +124,27 @@ export class UIScene extends Phaser.Scene {
     this.debugPointerSpawnEnabled = Boolean(this.registry.get('debugPointerSpawnEnabled'));
     this.registry.events.on('changedata-debugPointerSpawnEnabled', this.onDebugPointerSpawnChanged, this);
 
+    // Crisis alert texts
+    const { width, height } = this.scale;
+    this.surfaceRatAlert = this.add.text(width - 16, height / 2 - 60, '', {
+      fontFamily: '"Arial Black", sans-serif',
+      fontSize: '18px',
+      color: '#ff4444',
+      stroke: '#000000',
+      strokeThickness: 5,
+      backgroundColor: '#00000088',
+      padding: { x: 10, y: 6 },
+      align: 'right',
+    }).setDepth(1200).setOrigin(1, 0.5).setAlpha(0);
+
+    this.timeAlert = this.add.text(width / 2, 55, '', {
+      fontFamily: '"Arial Black", sans-serif',
+      fontSize: '22px',
+      color: '#ff3333',
+      stroke: '#000000',
+      strokeThickness: 5,
+    }).setDepth(1200).setOrigin(0.5).setAlpha(0);
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.registry.events.off('changedata-debugPointerSpawnEnabled', this.onDebugPointerSpawnChanged, this);
       this.cleanupTouchControls();
@@ -135,7 +163,7 @@ export class UIScene extends Phaser.Scene {
       skillUses:   (this.registry.get('skillUses')             ?? defaultHudState.skillUses),
     };
 
-    // HP 顯示與氧氣顯示
+    // HP & oxygen display
     const oxygen = Math.round(Number(this.registry.get('playerOxygen') ?? 100));
     const maxOxygen = Math.round(Number(this.registry.get('playerMaxOxygen') ?? 100));
     const oxygenStr = oxygen < maxOxygen ? `  💧氧氣: ${oxygen}%` : '';
@@ -145,9 +173,62 @@ export class UIScene extends Phaser.Scene {
       `HP: ${hud.playerHp}/${hud.playerMaxHp}  ${hearts}${oxygenStr}\n評分: ${hud.score}\n擊殺: ${hud.kills}\n嚇跑人數: ${hud.scaredHumans}\n倒數: ${hud.timeLeft}s`,
     );
 
+    // Boss warning
     this.bossText?.setText(hud.bossActive ? '⚠ 大BOSS 驅趕鼠群中 ⚠' : '');
 
-    // 技能欄顯示
+    // ─── Crisis Alerts ─────────────────────────────────────────────────
+    // Surface rat density warning
+    const surfaceRatCount = Number(this.registry.get('surfaceRatCount') ?? 0);
+    if (surfaceRatCount !== this.lastSurfaceRatCount) {
+      this.lastSurfaceRatCount = surfaceRatCount;
+      if (surfaceRatCount >= 3 && this.surfaceRatAlert) {
+        const urgency = surfaceRatCount >= 6 ? '🚨 鼠群聚集！地面危機！' : '⚠ 地面老鼠！';
+        this.surfaceRatAlert.setText(urgency).setAlpha(1);
+        this.tweens.killTweensOf(this.surfaceRatAlert);
+        this.tweens.add({
+          targets: this.surfaceRatAlert,
+          alpha: surfaceRatCount >= 6 ? 0.4 : 0.7,
+          yoyo: true,
+          duration: 400,
+          repeat: surfaceRatCount >= 6 ? 3 : 1,
+          onComplete: () => {
+            if (surfaceRatCount < 3) this.surfaceRatAlert?.setAlpha(0);
+            else this.surfaceRatAlert?.setAlpha(0.9);
+          }
+        });
+      } else if (surfaceRatCount < 3 && this.surfaceRatAlert) {
+        this.tweens.killTweensOf(this.surfaceRatAlert);
+        this.surfaceRatAlert.setAlpha(0);
+      }
+    }
+
+    // Last 15 seconds alert
+    if (hud.timeLeft > 0 && hud.timeLeft <= 15 && !this.timeAlertPulsing && this.timeAlert) {
+      this.timeAlertPulsing = true;
+      this.timeAlert.setText('⏰ 最後 15 秒！').setAlpha(1);
+      this.tweens.add({
+        targets: this.timeAlert,
+        alpha: 0.1,
+        yoyo: true,
+        duration: 500,
+        repeat: -1,
+      });
+    } else if (hud.timeLeft <= 0 && this.timeAlertPulsing) {
+      this.timeAlertPulsing = false;
+      this.tweens.killTweensOf(this.timeAlert);
+      this.timeAlert?.setAlpha(0);
+    }
+
+    // Boss pre-warning: 5s before boss arrives (when timeLeft ~ bossTrigger+5)
+    // We use registry key 'bossImminent' set by MainGameScene
+    const bossImminent = Boolean(this.registry.get('bossImminent'));
+    if (bossImminent && !this.bossPrewarned) {
+      this.bossPrewarned = true;
+      this.showBossPrewarning();
+    }
+    // ────────────────────────────────────────────────────────────────────
+
+    // Skill bar
     const s = hud.skillUses;
     const upgrades = this.registry.get('upgrades') as { baoYeShield?: number } | undefined;
     const level = upgrades?.baoYeShield ?? 1;
@@ -181,6 +262,36 @@ export class UIScene extends Phaser.Scene {
     } else if (gameStatus === 'gameover' && !this.screenOverlayActive) {
       this.showGameOverScreen();
     }
+  }
+
+  private showBossPrewarning(): void {
+    const { width, height } = this.scale;
+    const flash = this.add.graphics().setDepth(1800);
+    flash.fillStyle(0xff0000, 0.15);
+    flash.fillRect(0, 0, width, height);
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      yoyo: true,
+      duration: 300,
+      repeat: 4,
+      onComplete: () => flash.destroy(),
+    });
+    const warn = this.add.text(width / 2, height / 2 - 40, '⚠ BOSS 即將出現！', {
+      fontFamily: '"Arial Black", sans-serif',
+      fontSize: '36px',
+      color: '#ff3333',
+      stroke: '#000000',
+      strokeThickness: 7,
+    }).setDepth(1900).setOrigin(0.5);
+    this.tweens.add({
+      targets: warn,
+      alpha: 0,
+      y: warn.y - 30,
+      delay: 1500,
+      duration: 600,
+      onComplete: () => warn.destroy(),
+    });
   }
 
   private createTouchControls(): void {
@@ -395,18 +506,35 @@ export class UIScene extends Phaser.Scene {
     if (selectedMission) {
       earnedGold = Math.round(selectedMission.goldReward * rewardMult);
       earnedRep = Math.round(selectedMission.repReward * rewardMult);
-      
+
       const curGold = parseInt(localStorage.getItem('honghua_gold') ?? '200', 10);
       const curRep = parseInt(localStorage.getItem('honghua_reputation') ?? '100', 10);
-      
+
       const newGold = curGold + earnedGold;
       const newRep = Math.max(0, curRep + earnedRep);
-      
+
       localStorage.setItem('honghua_gold', newGold.toString());
       localStorage.setItem('honghua_reputation', newRep.toString());
-      
+
       this.registry.set('persistent_gold', newGold);
       this.registry.set('persistent_reputation', newRep);
+
+      // Save mission history (keep last 3)
+      const historyRaw = localStorage.getItem('honghua_mission_history') ?? '[]';
+      const history: Array<{ mission: string; evaluation: string; kills: number; gold: number }> =
+        JSON.parse(historyRaw);
+      history.unshift({
+        mission: selectedMission.name,
+        evaluation,
+        kills: hud.kills,
+        gold: earnedGold,
+      });
+      localStorage.setItem('honghua_mission_history', JSON.stringify(history.slice(0, 3)));
+    }
+
+    // Particle celebration for S/A rank
+    if (evaluation === 'S' || evaluation === 'A') {
+      this.spawnVictoryParticles();
     }
 
     const panelY = height / 2;
@@ -511,6 +639,8 @@ export class UIScene extends Phaser.Scene {
     this.registry.set('scaredHumans', 0);
     this.registry.set('levelTimeLeft', 0);
     this.registry.set('bossActive', false);
+    this.registry.set('bossImminent', false);
+    this.registry.set('surfaceRatCount', 0);
     this.registry.remove('gameStatus');
     this.registry.remove('remainingRats');
 
@@ -518,5 +648,37 @@ export class UIScene extends Phaser.Scene {
     this.scene.stop(SCENE_KEYS.ui);
     this.scene.stop(SCENE_KEYS.mainGame);
     this.scene.start(SCENE_KEYS.lobby);
+  }
+
+  private spawnVictoryParticles(): void {
+    const { width } = this.scale;
+    const colors = [0xffd166, 0xffffff, 0xff9f1c, 0xf8fafc, 0xffe066];
+    const count = 60;
+
+    for (let i = 0; i < count; i++) {
+      const delay = Phaser.Math.Between(0, 1200);
+      this.time.delayedCall(delay, () => {
+        const x = Phaser.Math.Between(0, width);
+        const color = Phaser.Utils.Array.GetRandom(colors);
+        const size = Phaser.Math.Between(4, 10);
+        const g = this.add.graphics().setDepth(2100);
+        g.fillStyle(color, 0.9);
+        g.fillCircle(0, 0, size);
+        g.setPosition(x, -10);
+
+        const targetX = x + Phaser.Math.Between(-80, 80);
+        const targetY = Phaser.Math.Between(100, 500);
+        this.tweens.add({
+          targets: g,
+          x: targetX,
+          y: targetY,
+          angle: Phaser.Math.Between(0, 360),
+          alpha: 0,
+          duration: Phaser.Math.Between(1000, 2000),
+          ease: 'Power1',
+          onComplete: () => g.destroy(),
+        });
+      });
+    }
   }
 }

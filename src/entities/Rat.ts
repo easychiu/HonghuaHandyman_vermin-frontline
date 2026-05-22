@@ -22,6 +22,8 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
   // External speed multiplier applied by slow zones (1.0 = normal, < 1.0 = slowed)
   public externalSpeedMultiplier = 1.0;
   private burnEmitter?: Phaser.GameObjects.Particles.ParticleEmitter;
+  private panicBubble?: Phaser.GameObjects.Graphics;
+  private panicBubbleTimer?: Phaser.Time.TimerEvent;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, 'rat');
@@ -102,9 +104,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
         if (!this.active || this.isPanicking) {
           return;
         }
-
-        this.clearTint();
-        this.setTint(GAME_BALANCE.rat.profiles[this.faction].tint);
+        this.clearTint(); // just clear, no faction tint needed — textures handle color
       });
     }
 
@@ -129,8 +129,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
         this.setTintFill(0xff6600);
         this.scene.time.delayedCall(150, () => {
           if (!this.active) return;
-          this.clearTint();
-          this.setTint(GAME_BALANCE.rat.profiles[this.faction].tint);
+          this.clearTint(); // clear only, no faction tint needed
         });
         this.takeDamage(damage);
       });
@@ -177,6 +176,55 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.externalSpeedMultiplier = 1.0;
   }
 
+  private showPanicBubble(): void {
+    this.destroyPanicBubble();
+    if (!this.active) return;
+
+    const g = this.scene.add.graphics().setDepth(200);
+
+    // Draw a small speech-bubble with "!" above the rat
+    const drawBubble = () => {
+      if (!this.active || !g.scene) return;
+      g.clear();
+      const bx = this.x;
+      const by = this.y - this.displayHeight * 0.5 - 18;
+      // Bubble background
+      g.fillStyle(0xffffff, 0.9);
+      g.fillRoundedRect(bx - 8, by - 16, 16, 18, 4);
+      // Bubble tail
+      g.fillTriangle(bx - 3, by + 2, bx + 3, by + 2, bx, by + 7);
+      // "!" mark
+      g.fillStyle(0xff2222, 1);
+      g.fillRect(bx - 1.5, by - 13, 3, 9);
+      g.fillRect(bx - 1.5, by - 2, 3, 3);
+    };
+
+    drawBubble();
+    // Update bubble position each frame
+    this.panicBubbleTimer = this.scene.time.addEvent({
+      delay: 32,
+      loop: true,
+      callback: () => {
+        if (!this.active) {
+          this.destroyPanicBubble();
+          return;
+        }
+        drawBubble();
+      },
+    });
+    this.panicBubble = g;
+
+    // Auto-remove after 2s
+    this.scene.time.delayedCall(2000, () => this.destroyPanicBubble());
+  }
+
+  private destroyPanicBubble(): void {
+    this.panicBubbleTimer?.remove();
+    this.panicBubbleTimer = undefined;
+    this.panicBubble?.destroy();
+    this.panicBubble = undefined;
+  }
+
   panic(): void {
     this.isPanicking = true;
     this.state = 'panic';
@@ -184,6 +232,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
     this.setTint(0xff3333);
     this.setVelocityX(this.moveSpeed * this.currentDirection);
     this.setVelocityY(-150);
+    this.showPanicBubble();
   }
 
   applyBossDrive(pipeX: number, surfaceY: number): void {
@@ -226,6 +275,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
   despawn(): void {
     this.state = 'dead';
     this.stopBurnParticles();
+    this.destroyPanicBubble();
     this.setActive(false);
     this.setVisible(false);
     this.body?.stop();
@@ -233,6 +283,7 @@ export class Rat extends Phaser.Physics.Arcade.Sprite {
 
   destroy(fromScene?: boolean): void {
     this.stopBurnParticles();
+    this.destroyPanicBubble();
     super.destroy(fromScene);
   }
 
