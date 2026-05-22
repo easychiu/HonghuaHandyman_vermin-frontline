@@ -10,6 +10,7 @@ import { Trap } from '../entities/Trap';
 import { CombatSystem } from '../systems/CombatSystem';
 import { HumanSightSystem } from '../systems/HumanSightSystem';
 import { LevelTimerSystem } from '../systems/LevelTimerSystem';
+import { MapLayoutSystem } from '../systems/MapLayoutSystem';
 import { RatSpawnerSystem } from '../systems/RatSpawnerSystem';
 import { ReputationSystem } from '../systems/ReputationSystem';
 import { SkillSystem } from '../systems/SkillSystem';
@@ -45,10 +46,25 @@ export class MainGameScene extends Phaser.Scene {
   create(): void {
     const { width, height } = this.scale;
 
-    this.cameras.main.setBackgroundColor('#8d99ae');
-    this.createBackground(width, height);
+    // Read mission and generate random seed for this run
+    const selectedMission = this.registry.get('selectedMission') as { id?: string } | undefined;
+    const missionId = selectedMission?.id ?? 'A';
+    const mapSeed = Date.now() % 100000;
+
+    // Platform group must be created before MapLayoutSystem (which adds to it)
+    this.platforms = this.physics.add.staticGroup();
+
+    // Build themed map (background + base platforms + random extras)
+    this.createBasePlatforms(width, height, missionId);
+    const mapLayout = new MapLayoutSystem(this, this.platforms, missionId, mapSeed);
+    mapLayout.buildMap();
+
+    // Sky color driven by theme (set before layout so gradient shows on top)
+    // Theme colors are built into MapLayoutSystem; we just set camera BG here
+    const skyColors: Record<string, string> = { A: '#4a4e69', B: '#6b4226', C: '#2c2c54' };
+    this.cameras.main.setBackgroundColor(skyColors[missionId] ?? '#4a4e69');
+
     ensureHonghuaAnimations(this);
-    this.platforms = this.createPlatforms(width, height);
 
     const pipeHeight = height - GAME_BALANCE.world.surfaceY;
     const pipe = this.physics.add.staticImage(480, GAME_BALANCE.world.surfaceY, 'pipe_texture')
@@ -164,8 +180,7 @@ export class MainGameScene extends Phaser.Scene {
       this.bossController.trigger(() => this.getActiveRats());
     };
 
-    const selectedMission = this.registry.get('selectedMission');
-    const levelDuration = selectedMission ? selectedMission.duration : GAME_BALANCE.level.durationSeconds;
+    const levelDuration = selectedMission?.duration ?? GAME_BALANCE.level.durationSeconds;
 
     this.levelTimerSystem = new LevelTimerSystem({
       scene: this,
@@ -373,40 +388,40 @@ export class MainGameScene extends Phaser.Scene {
     return [...activeGreen, ...activeBlue];
   }
 
-  private createBackground(width: number, height: number): void {
-    const undergroundBg = this.add.graphics();
-    undergroundBg.fillStyle(0x1a2421);
-    undergroundBg.fillRect(0, GAME_BALANCE.world.surfaceY, width, height - GAME_BALANCE.world.surfaceY);
+  /**
+   * Creates the fixed base platforms using mission-themed textures.
+   * MapLayoutSystem adds extra platforms on top of this.
+   */
+  private createBasePlatforms(width: number, height: number, missionId = 'A'): void {
+    const groundKey: Record<string, string> = {
+      A: 'ground_texture',
+      B: 'ground_b_texture',
+      C: 'ground_c_texture',
+    };
+    const ugKey: Record<string, string> = {
+      A: 'underground_texture',
+      B: 'underground_b_texture',
+      C: 'underground_c_texture',
+    };
+    const gTex = groundKey[missionId] ?? 'ground_texture';
+    const uTex = ugKey[missionId] ?? 'underground_texture';
 
-    this.add
-      .text(width / 2, 30, '地面層 (人類街道)', { color: '#ffffff', fontSize: '20px', align: 'center' })
-      .setOrigin(0.5);
+    // Store for MapLayoutSystem to reuse
+    this.registry.set('mapGroundTex', gTex);
+    this.registry.set('mapUgTex', uTex);
 
-    this.add
-      .text(width / 2, GAME_BALANCE.world.surfaceY + 30, '地下層 (藍綠鼠巢穴)', {
-        color: '#888888',
-        fontSize: '20px',
-        align: 'center',
-      })
-      .setOrigin(0.5);
-  }
+    const addTile = (x: number, y: number, w: number, h: number, texture: string) => {
+      const t = this.add.tileSprite(x, y, w, h, texture);
+      this.physics.add.existing(t, true);
+      this.platforms.add(t);
+    };
 
-  private createPlatforms(width: number, height: number): Phaser.Physics.Arcade.StaticGroup {
-    const platforms = this.physics.add.staticGroup();
-
-    const groundLeft = this.add.tileSprite(200, GAME_BALANCE.world.surfaceY, 400, 20, 'ground_texture');
-    this.physics.add.existing(groundLeft, true);
-    platforms.add(groundLeft);
-
-    const groundRight = this.add.tileSprite(760, GAME_BALANCE.world.surfaceY, 400, 20, 'ground_texture');
-    this.physics.add.existing(groundRight, true);
-    platforms.add(groundRight);
-
-    const undergroundFloor = this.add.tileSprite(width / 2, height - 20, width, 40, 'underground_texture');
-    this.physics.add.existing(undergroundFloor, true);
-    platforms.add(undergroundFloor);
-
-    return platforms;
+    // Surface left (pipe gap starts at x=460)
+    addTile(230, GAME_BALANCE.world.surfaceY, 460, 20, gTex);
+    // Surface right
+    addTile(730, GAME_BALANCE.world.surfaceY, 460, 20, gTex);
+    // Underground floor
+    addTile(width / 2, height - 20, width, 40, uTex);
   }
 
   private createCommonTextures(): void {

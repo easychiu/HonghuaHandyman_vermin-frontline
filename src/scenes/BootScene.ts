@@ -30,6 +30,15 @@ export class BootScene extends Phaser.Scene {
     this.load.image('underground_texture', 'assets/underground.png');
     this.load.image('pipe_texture', 'assets/pipe.png');
     this.load.image('boss_texture', 'assets/boss.png');
+    // Taipei map for mission select screen
+    this.load.image('taipei_map', 'assets/taipei_map.png');
+
+    // Mission B – urban textures
+    this.load.image('ground_b_texture', 'assets/ground_b.png');
+    this.load.image('underground_b_texture', 'assets/underground_b.png');
+    // Mission C – castle textures
+    this.load.image('ground_c_texture', 'assets/ground_c.png');
+    this.load.image('underground_c_texture', 'assets/underground_c.png');
   }
 
   create(): void {

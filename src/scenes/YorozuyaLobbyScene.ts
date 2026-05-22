@@ -196,14 +196,149 @@ export class YorozuyaLobbyScene extends Phaser.Scene {
     headerLine.lineStyle(2, 0xa855f7, 0.4);
     headerLine.lineBetween(30, 65, width - 30, 65);
 
-    // Left Panel: Commissions
-    this.createCommissionsPanel(30, 85, 430, 420);
+    // Left Panel: Map Select Button + Current Mission Preview
+    this.createMapSelectPanel(30, 85, 430, 420);
 
     // Right Panel: Upgrades
     this.createUpgradesPanel(490, 85, 440, 420);
 
     // Bottom: Mission History Board
     this.createMissionHistoryPanel(30, 520, width - 60, 80);
+  }
+
+  private createMapSelectPanel(x: number, y: number, w: number, h: number): void {
+    // Panel background
+    const bg = this.add.graphics();
+    bg.fillStyle(0x111625, 0.75);
+    bg.lineStyle(1, 0xa855f7, 0.4);
+    bg.fillRoundedRect(x, y, w, h, 12);
+    bg.strokeRoundedRect(x, y, w, h, 12);
+
+    this.add.text(x + 20, y + 18, '🗺 任務地圖・台北市', {
+      color: '#a855f7',
+      fontFamily: '"Microsoft JhengHei", "Outfit", Arial, sans-serif',
+      fontSize: '18px',
+      fontWeight: 'bold',
+    });
+
+    // Map preview image (mini Taipei map)
+    const previewImg = this.add.image(x + w / 2, y + 155, 'taipei_map')
+      .setDisplaySize(w - 40, 195)
+      .setAlpha(0.7);
+
+    // Vignette over preview
+    const previewVig = this.add.graphics();
+    previewVig.fillStyle(0x000000, 0.35);
+    previewVig.fillRoundedRect(x + 20, y + 57, w - 40, 195, 6);
+
+    // Location pins preview (decorative dots)
+    const pins = [
+      { rx: 0.63, ry: 0.48, color: 0x3b82f6 },   // 饒河
+      { rx: 0.40, ry: 0.22, color: 0xffd166 },   // 士林
+      { rx: 0.38, ry: 0.52, color: 0xff9f1c },   // 地下街
+      { rx: 0.26, ry: 0.65, color: 0xff3333 },   // 萬華
+    ];
+    const previewW = w - 40;
+    const previewH = 195;
+    const previewX = x + 20;
+    const previewY = y + 57;
+
+    pins.forEach(p => {
+      const px = previewX + p.rx * previewW;
+      const py = previewY + p.ry * previewH;
+      const dot = this.add.graphics();
+      dot.fillStyle(p.color, 1);
+      dot.fillCircle(px, py, 5);
+      dot.lineStyle(1, 0xffffff, 0.6);
+      dot.strokeCircle(px, py, 5);
+
+      this.tweens.add({
+        targets: dot,
+        scaleX: 1.8,
+        scaleY: 1.8,
+        alpha: 0.3,
+        yoyo: true,
+        duration: 900 + Math.random() * 400,
+        repeat: -1,
+      });
+    });
+
+    // Current mission info strip
+    const mission = this.registry.get('selectedMission') as Record<string, unknown> | undefined;
+    const missionName = (mission?.name as string | undefined) ?? '未選擇';
+    const missionId   = (mission?.missionId as string | undefined) ?? '';
+
+    const diffMap: Record<string, string> = { A: '★☆☆☆☆', B: '★★★☆☆', C: '★★★★☆', D: '★★★★★' };
+    const colorMap: Record<string, string> = { A: '#3b82f6', B: '#ffd166', C: '#ff9f1c', D: '#ff3333' };
+
+    const stripBg = this.add.graphics();
+    stripBg.fillStyle(0x0f172a, 0.9);
+    stripBg.fillRoundedRect(x + 20, y + 262, w - 40, 50, 6);
+
+    this.add.text(x + 35, y + 274, '📍 已選擇任務：', {
+      fontFamily: '"Microsoft JhengHei", Arial, sans-serif',
+      fontSize: '12px',
+      color: '#64748b',
+    });
+    this.add.text(x + 35, y + 292, missionName || '（尚未選擇，請打開地圖）', {
+      fontFamily: '"Microsoft JhengHei", Arial, sans-serif',
+      fontSize: '14px',
+      fontStyle: 'bold',
+      color: colorMap[missionId] ?? '#94a3b8',
+    });
+    if (missionId) {
+      this.add.text(x + w - 60, y + 285, diffMap[missionId] ?? '', {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '13px',
+        color: colorMap[missionId] ?? '#94a3b8',
+      }).setOrigin(1, 0.5);
+    }
+
+    // Big "打開大地圖" button
+    const btnY = y + 330;
+    const btnBg = this.add.graphics();
+    const drawBtn = (hover: boolean) => {
+      btnBg.clear();
+      btnBg.fillStyle(hover ? 0xa855f7 : 0x7c3aed, 0.95);
+      btnBg.fillRoundedRect(x + 20, btnY, w - 40, 52, 10);
+      if (hover) {
+        btnBg.lineStyle(2, 0xffffff, 0.3);
+        btnBg.strokeRoundedRect(x + 20, btnY, w - 40, 52, 10);
+      }
+    };
+    drawBtn(false);
+
+    const btnTxt = this.add.text(x + w / 2, btnY + 26, '🗺  打開台北大地圖', {
+      fontFamily: '"Microsoft JhengHei", "Outfit", Arial, sans-serif',
+      fontSize: '18px',
+      fontStyle: 'bold',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    const btnHit = this.add.zone(x + w / 2, btnY + 26, w - 40, 52).setInteractive({ useHandCursor: true });
+    btnHit.on('pointerover', () => { drawBtn(true); btnTxt.setScale(1.05); });
+    btnHit.on('pointerout', () => { drawBtn(false); btnTxt.setScale(1); });
+    btnHit.on('pointerdown', () => {
+      this.cameras.main.fadeOut(300, 0, 0, 0);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+        this.scene.start(SCENE_KEYS.taipeiMap);
+      });
+    });
+
+    // Pulse glow on button
+    this.tweens.add({
+      targets: btnBg,
+      alpha: 0.75,
+      yoyo: true,
+      duration: 1100,
+      repeat: -1,
+    });
+
+    // Suppress unused variable warnings
+    void previewImg;
+    void previewVig;
   }
 
   private createMissionHistoryPanel(x: number, y: number, w: number, h: number): void {

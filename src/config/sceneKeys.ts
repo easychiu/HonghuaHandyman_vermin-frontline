@@ -2,6 +2,7 @@ export const SCENE_KEYS = {
   boot: 'BootScene',
   intro: 'IntroScene',
   lobby: 'YorozuyaLobbyScene',
+  taipeiMap: 'TaipeiMapScene',
   ready: 'ReadyScene',
   mainGame: 'MainGameScene',
   ui: 'UIScene',
