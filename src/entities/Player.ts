@@ -56,9 +56,17 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    this.setScale(2);
+    this.setScale(0.8);
     this.setCollideWorldBounds(true);
     this.setFlipX(false);
+    // Adjust physics body to match scaled sprite (62*0.8=49.6, 88*0.8=70.4)
+    if (this.body) {
+      const body = this.body as Phaser.Physics.Arcade.Body;
+      const bw = 36; // narrower than full width for better feel
+      const bh = 60;
+      body.setSize(bw, bh);
+      body.setOffset((62 - bw) / 2, 88 - bh); // center horizontally, align to feet
+    }
     this.lastInteractionAt = scene.time.now;
 
     this.healthBarGraphics = scene.add.graphics().setDepth(50);
