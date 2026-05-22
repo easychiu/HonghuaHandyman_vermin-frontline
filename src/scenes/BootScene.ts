@@ -23,6 +23,10 @@ export class BootScene extends Phaser.Scene {
     this.load.image('trap_cheese', 'assets/trap_cheese.png');
     this.load.image('trap_barricade', 'assets/trap_barricade.png');
     this.load.image('human_texture', 'assets/human.png');
+    this.load.image('human_man', 'assets/human_man.png');
+    this.load.image('human_woman', 'assets/human_woman.png');
+    this.load.image('human_boy', 'assets/human_boy.png');
+    this.load.image('human_girl', 'assets/human_girl.png');
     this.load.image('portal_texture', 'assets/portal.png');
     this.load.image('anzo_agent', 'assets/anzo_agent.png');
     this.load.image('police_car', 'assets/police_car.png');

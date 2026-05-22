@@ -9,15 +9,24 @@ export class Human extends Phaser.Physics.Arcade.Sprite {
     super(scene, x, y, 'human_texture');
   }
 
-  spawn(x: number, y: number): void {
-    this.setDisplaySize(24, 40);
+  spawn(x: number, y: number, initialDir?: number): void {
+    const types = ['human_man', 'human_woman', 'human_boy', 'human_girl'];
+    const chosenType = Phaser.Utils.Array.GetRandom(types);
+    this.setTexture(chosenType);
+
+    if (chosenType === 'human_boy' || chosenType === 'human_girl') {
+      this.setDisplaySize(18, 30);
+    } else {
+      this.setDisplaySize(24, 40);
+    }
+
     this.body?.reset(x, y);
     this.setActive(true);
     this.setVisible(true);
     
     if (this.body) {
       const body = this.body as Phaser.Physics.Arcade.Body;
-      body.setSize(this.width, this.height);
+      body.setSize(this.displayWidth, this.displayHeight);
     }
 
     // 重置狀態
@@ -25,9 +34,10 @@ export class Human extends Phaser.Physics.Arcade.Sprite {
     this.moveSpeed = 50;
     this.clearTint(); // Use original pixel art colors instead of flat blue
     
-    // 隨機決定一開始的散步方向
-    this.currentDirection = Phaser.Math.Between(0, 1) === 0 ? 1 : -1;
+    // 隨機決定一開始的散步方向，除非指定了方向
+    this.currentDirection = initialDir !== undefined ? initialDir : (Phaser.Math.Between(0, 1) === 0 ? 1 : -1);
     this.setVelocityX(this.moveSpeed * this.currentDirection);
+    this.setFlipX(this.currentDirection === -1);
   }
 
   // --- 新增：驚嚇處理邏輯 ---
@@ -45,6 +55,7 @@ export class Human extends Phaser.Physics.Arcade.Sprite {
       this.currentDirection = Phaser.Math.Between(0, 1) === 0 ? 1 : -1;
     }
     this.setVelocityX(this.moveSpeed * this.currentDirection);
+    this.setFlipX(this.currentDirection === -1);
     
     // 嚇到整個人跳起來
     this.setVelocityY(-200);
@@ -93,19 +104,25 @@ export class Human extends Phaser.Physics.Arcade.Sprite {
       this.currentDirection = 1; 
     }
 
-    // 邊緣偵測 (人類知道那是水溝，不會自己跳下去)
+    // 邊緣偵測 (人類知道那是水溝，不會自己跳下去。但如果是要離開螢幕邊緣，就不轉向，直接走出去)
     if (this.body.blocked.down) {
-      const checkX = this.currentDirection === 1 ? this.body.right + 2 : this.body.left - 2;
-      const checkY = this.body.bottom + 2;
-      const bodiesUnderFront = this.scene.physics.overlapRect(checkX, checkY, 1, 1, false, true);
-      if (bodiesUnderFront.length === 0) {
-        this.currentDirection *= -1;
+      const nearLeftEdge = this.x < 40 && this.currentDirection === -1;
+      const nearRightEdge = this.x > this.scene.scale.width - 40 && this.currentDirection === 1;
+
+      if (!nearLeftEdge && !nearRightEdge) {
+        const checkX = this.currentDirection === 1 ? this.body.right + 2 : this.body.left - 2;
+        const checkY = this.body.bottom + 2;
+        const bodiesUnderFront = this.scene.physics.overlapRect(checkX, checkY, 1, 1, false, true);
+        if (bodiesUnderFront.length === 0) {
+          this.currentDirection *= -1;
+        }
       }
     }
 
     this.setVelocityX(this.moveSpeed * this.currentDirection);
+    this.setFlipX(this.currentDirection === -1);
 
-    if (this.y > this.scene.scale.height + 50) {
+    if (this.y > this.scene.scale.height + 50 || this.x < -50 || this.x > this.scene.scale.width + 50) {
       this.despawn();
     }
   }

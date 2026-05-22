@@ -72,6 +72,13 @@ export class MainGameScene extends Phaser.Scene {
       .setDisplaySize(40, pipeHeight);
     pipe.refreshBody();
 
+    // 建立一個隱形的橋（Gap Bridge）覆蓋中央水溝開口 (x=460 ~ 500)
+    // 專供路人行走，這樣路人就能直接路過中央管道口而不掉下去
+    const gapBridge = this.physics.add.staticImage(480, GAME_BALANCE.world.surfaceY, 'ground_texture');
+    gapBridge.setDisplaySize(40, 20);
+    gapBridge.refreshBody();
+    gapBridge.setVisible(false); // 隱形不破壞畫面
+
     this.greenRatPool = this.physics.add.group({ classType: Rat, maxSize: 100, runChildUpdate: true });
     this.blueRatPool = this.physics.add.group({ classType: Rat, maxSize: 100, runChildUpdate: true });
     this.trapPool = this.physics.add.group({ classType: Trap, maxSize: 20, runChildUpdate: false });
@@ -90,6 +97,7 @@ export class MainGameScene extends Phaser.Scene {
     this.physics.add.collider(this.blueRatPool, this.platforms);
     this.physics.add.collider(this.player, this.platforms);
     this.physics.add.collider(this.humanPool, this.platforms);
+    this.physics.add.collider(this.humanPool, gapBridge);
 
     this.physics.add.overlap(this.greenRatPool, pipe, this.handleRatClimbPipe, undefined, this);
     this.physics.add.overlap(this.blueRatPool, pipe, this.handleRatClimbPipe, undefined, this);
@@ -205,6 +213,14 @@ export class MainGameScene extends Phaser.Scene {
     if (!this.scene.isActive(SCENE_KEYS.ui)) {
       this.scene.launch(SCENE_KEYS.ui);
     }
+
+    // Periodically spawn new civilians from the edges to maintain a lively street
+    this.time.addEvent({
+      delay: 7000, // Check every 7 seconds
+      callback: this.spawnNewCivilianFromEdge,
+      callbackScope: this,
+      loop: true
+    });
 
     // Countdown before game starts
     this.gameStarted = false;
@@ -429,11 +445,44 @@ export class MainGameScene extends Phaser.Scene {
   }
 
   private spawnInitialHumans(): void {
-    const human1 = this.humanPool.get() as Human | null;
-    human1?.spawn(200, 200);
+    // 隨機生成數量 (3 ~ 6 個)
+    const count = Phaser.Math.Between(3, 6);
+    for (let i = 0; i < count; i++) {
+      const human = this.humanPool.get() as Human | null;
+      if (human) {
+        // 隨機分配在左半邊或右半邊的街道上
+        const onLeft = Phaser.Math.Between(0, 1) === 0;
+        const x = onLeft 
+          ? Phaser.Math.Between(50, 400) 
+          : Phaser.Math.Between(560, 910);
+        human.spawn(x, 200);
+      }
+    }
+  }
 
-    const human2 = this.humanPool.get() as Human | null;
-    human2?.spawn(760, 200);
+  private spawnNewCivilianFromEdge(): void {
+    // 遊戲未開始或已結束時不生成路人
+    if (!this.gameStarted) return;
+    const gameStatus = this.registry.get('gameStatus');
+    if (gameStatus === 'victory' || gameStatus === 'gameover') return;
+
+    const activeCount = this.humanPool.countActive(true);
+    if (activeCount >= 6) {
+      return; // 街上路人已達上限 (最多 6 個)
+    }
+
+    const human = this.humanPool.get() as Human | null;
+    if (human) {
+      // 隨機從左邊或右邊螢幕外生成
+      const fromLeft = Phaser.Math.Between(0, 1) === 0;
+      if (fromLeft) {
+        // 從左側螢幕外生成，向右走
+        human.spawn(-20, 200, 1);
+      } else {
+        // 從右側螢幕外生成，向左走
+        human.spawn(this.scale.width + 20, 200, -1);
+      }
+    }
   }
 
   /**

@@ -62,7 +62,7 @@ export class SkillSystem {
 
     const projectile = this.scene.add.sprite(this.player.x, projectileStartY, 'betel_nut').setDepth(30);
     projectile.setTint(tint);
-    projectile.setScale(0.5);
+    projectile.setScale(0.3);
 
     // Particle emitter for smoke trail trailing behind
     const trailParticles = this.scene.add.particles(0, 0, 'flame_particle', {
